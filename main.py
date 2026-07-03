@@ -808,114 +808,71 @@ async def reseller_panel(request: Request):
     s = await get_session_data(request.cookies.get(SESSION_COOKIE))
     if not s or s["role"] != "reseller":
         return RedirectResponse(url="/login")
-    
     rid = s["user_id"]
     async with RESELLERS_LOCK:
         res = RESELLERS.get(rid)
         if not res or not res.get("active", True):
             await destroy_session(request.cookies.get(SESSION_COOKIE))
             return RedirectResponse(url="/login")
-        res_name = res["name"]
-        total_fmt = fmt_bytes(res["total_bytes"])
-        async with LINKS_LOCK:
-            allocated = sum(d.get("limit_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
-            used = sum(d.get("used_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
-            remaining = max(0, res["total_bytes"] - allocated)
-            links_count = sum(1 for d in LINKS.values() if d.get("creator_id") == rid)
-    
-    host = get_host()
-    html = f"""<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>پنل نماینده · {res_name}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        name = res["name"]
+        total = res["total_bytes"]
+    async with LINKS_LOCK:
+        used = sum(d.get("used_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
+        allocated = sum(d.get("limit_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
+        remaining = max(0, total - allocated)
+        cnt = sum(1 for d in LINKS.values() if d.get("creator_id") == rid)
+    pct = min(100, round(used/total*100)) if total > 0 else 0
+    bar_col = "var(--red)" if pct > 90 else ("var(--amber)" if pct > 70 else "var(--green)")
+    return HTMLResponse(content=f"""<!DOCTYPE html>
+<html lang="fa" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل نماینده</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-:root{{--bg:#060f1d;--card:rgba(10,22,40,0.9);--accent:#8B5CF6;--text:#E8F4FF;--dim:#3D6B8E;--mid:#7BAED4;--border:rgba(139,92,246,0.2);--green:#10B981;--green-bg:rgba(16,185,129,0.1);--green-t:#34D399;--red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#F87171;--amber:#F59E0B;--amber-bg:rgba(245,158,11,0.1);--amber-t:#FCD34D}}
-body{{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--text);padding:20px;min-height:100vh}}
-.wrap{{max-width:600px;margin:0 auto}}
-.header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}}
-.logo{{font-size:16px;font-weight:700;color:var(--text)}}
-.logo span{{color:var(--accent)}}
-.card{{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px}}
-.card-title{{font-size:13px;font-weight:700;color:var(--mid);margin-bottom:14px;display:flex;align-items:center;gap:7px;text-transform:uppercase;letter-spacing:.06em}}
-.stat-row{{display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap}}
-.stat-box{{flex:1;min-width:120px;padding:14px;background:rgba(139,92,246,0.05);border:1px solid var(--border);border-radius:12px}}
-.stat-label{{font-size:9px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}}
-.stat-val{{font-size:22px;font-weight:800;color:var(--text)}}
-.stat-sub{{font-size:10px;color:var(--dim);margin-top:4px}}
-.bar{{height:6px;border-radius:4px;background:rgba(139,92,246,0.12);overflow:hidden;margin:10px 0}}
-.bar-fill{{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),#6D48D6);transition:width .5s}}
-.info-box{{display:flex;align-items:flex-start;gap:10px;background:rgba(139,92,246,0.06);border:1px solid var(--border);border-radius:12px;padding:14px;font-size:12px;color:var(--mid);line-height:1.8}}
-.info-box i{{color:var(--accent);font-size:16px;flex-shrink:0;margin-top:2px}}
-.btn{{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;border:none;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}}
-.btn-p{{background:var(--accent);color:#fff}}
-.btn-p:hover{{filter:brightness(1.1)}}
-.btn-o{{background:transparent;border:1px solid var(--border);color:var(--mid)}}
-.btn-o:hover{{background:rgba(139,92,246,0.08)}}
-.footer{{text-align:center;padding-top:20px;font-size:10px;color:var(--dim)}}
-.footer a{{color:var(--accent);font-weight:600}}
-</style>
-</head>
-<body>
+body{{font-family:'Vazirmatn',sans-serif;background:#060f1d;color:#E8F4FF;padding:20px;min-height:100vh}}
+.wrap{{max-width:500px;margin:0 auto}}
+h1{{font-size:18px;margin-bottom:4px}}
+.sub{{color:#3D6B8E;font-size:12px;margin-bottom:20px}}
+.card{{background:rgba(10,22,40,0.9);border:1px solid rgba(139,92,246,0.2);border-radius:16px;padding:20px;margin-bottom:14px}}
+.row{{display:flex;gap:10px;flex-wrap:wrap}}
+.box{{flex:1;min-width:100px;padding:14px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:12px;text-align:center}}
+.box .lbl{{font-size:9px;color:#3D6B8E;text-transform:uppercase;margin-bottom:5px}}
+.box .val{{font-size:20px;font-weight:800}}
+.bar{{height:6px;background:rgba(139,92,246,0.1);border-radius:4px;overflow:hidden;margin:12px 0}}
+.bar-f{{height:100%;border-radius:4px;background:{bar_col};width:{pct}%}}
+.info{{font-size:12px;color:#7BAED4;line-height:2}}
+.btn{{font-family:inherit;font-size:12px;padding:8px 16px;border-radius:9px;border:1px solid rgba(139,92,246,0.2);background:transparent;color:#7BAED4;cursor:pointer}}
+.btn:hover{{background:rgba(139,92,246,0.1)}}
+.ft{{text-align:center;padding-top:14px;font-size:10px;color:#3D6B8E}}
+</style></head><body>
 <div class="wrap">
-  <div class="header">
-    <div class="logo">VaslZone · <span>نماینده</span></div>
-    <form action="/api/logout" method="post" id="logout-form" style="display:inline">
-      <button class="btn btn-o" type="submit"><i class="ti ti-logout"></i> خروج</button>
-    </form>
-  </div>
-
-  <div class="card">
-    <div class="card-title"><i class="ti ti-user"></i> {res_name}</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span class="stat-val" style="font-size:28px">{fmt_bytes(used)}</span>
-      <span style="color:var(--dim);font-size:12px">از {total_fmt} مصرف شده</span>
-    </div>
-    <div class="bar"><div class="bar-fill" style="width:{min(100, round(used/res['total_bytes']*100) if res['total_bytes'] > 0 else 0)}%"></div></div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--dim)">
-      <span>مصرف: {fmt_bytes(used)}</span>
-      <span>باقی: {fmt_bytes(remaining)}</span>
-    </div>
-  </div>
-
-  <div class="stat-row">
-    <div class="stat-box"><div class="stat-label"><i class="ti ti-database"></i> کل حجم</div><div class="stat-val">{total_fmt}</div></div>
-    <div class="stat-box"><div class="stat-label"><i class="ti ti-clock"></i> باقی‌مانده</div><div class="stat-val" style="color:{'var(--green-t)' if remaining > 0 else 'var(--red-t)'}">{fmt_bytes(remaining)}</div><div class="stat-sub">برای ساخت کانفیگ</div></div>
-    <div class="stat-box"><div class="stat-label"><i class="ti ti-link"></i> کانفیگ‌ها</div><div class="stat-val">{links_count}</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-title"><i class="ti ti-info-circle"></i> محدودیت‌های شما</div>
-    <div class="info-box">
-      <i class="ti ti-shield-check"></i>
-      <div>
-        <strong>• حجم مجاز:</strong> {total_fmt}<br>
-        <strong>• حجم باقی‌مانده:</strong> {fmt_bytes(remaining)}<br>
-        <strong>• کانفیگ‌های ساخته شده:</strong> {links_count} عدد<br>
-        <strong>• ساخت کانفیگ نامحدود:</strong> ❌ مجاز نیست<br>
-        <strong>• دسترسی به تنظیمات:</strong> ❌ فقط کانفیگ خودت<br>
-        <strong>• وضعیت:</strong> {'✅ فعال' if res.get('active', True) else '❌ غیرفعال'}
-      </div>
-    </div>
-  </div>
-
-  <div class="footer">
-    VaslZone Gateway · <a href="https://t.me/VaslZone" target="_blank">@VaslZone</a>
-  </div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+<div><h1>{name}</h1><div class="sub">نماینده VaslZone</div></div>
+<button class="btn" onclick="fetch('/api/logout',{{method:'POST'}}).then(()=>location.href='/login')"><i class="ti ti-logout"></i> خروج</button>
 </div>
-<script>
-document.getElementById('logout-form')?.addEventListener('submit', async (e) => {{
-  e.preventDefault();
-  await fetch('/api/logout', {{method:'POST'}});
-  window.location.href = '/login';
-}});
-</script>
-</body></html>"""
-    return HTMLResponse(content=html)
+<div class="card">
+<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px">
+<span>مصرف: {fmt_bytes(used)}</span><span>از {fmt_bytes(total)}</span></div>
+<div class="bar"><div class="bar-f"></div></div>
+<div style="display:flex;justify-content:space-between;font-size:10px;color:#3D6B8E">
+<span>باقی: {fmt_bytes(remaining)}</span><span>{pct}%</span></div>
+</div>
+<div class="row">
+<div class="box"><div class="lbl">حجم کل</div><div class="val">{fmt_bytes(total)}</div></div>
+<div class="box"><div class="lbl">باقی‌مانده</div><div class="val" style="color:{bar_col}">{fmt_bytes(remaining)}</div></div>
+<div class="box"><div class="lbl">کانفیگ‌ها</div><div class="val">{cnt}</div></div>
+</div>
+<div class="card"><div class="info">
+<i class="ti ti-shield-check" style="color:var(--accent)"></i>
+<b>محدودیت‌های شما:</b><br>
+• حداکثر حجم: {fmt_bytes(total)}<br>
+• باقی‌مانده: {fmt_bytes(remaining)}<br>
+• ساخت کانفیگ نامحدود: ممنوع ❌<br>
+• دسترسی به تنظیمات: فقط کانفیگ‌های خودت
+</div></div>
+<div class="ft">VaslZone Gateway · <a href="https://t.me/VaslZone" style="color:#8B5CF6">@VaslZone</a></div>
+</div></body></html>""")
 
 # ── Reseller Token Login ──
 @app.get("/r/{login_token}")
