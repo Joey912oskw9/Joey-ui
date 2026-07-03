@@ -37,6 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Persistence ───────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 DATA_FILE = DATA_DIR / "rvg_state.json"
 SAVE_LOCK = asyncio.Lock()
@@ -79,6 +80,7 @@ async def save_state():
         except Exception as e:
             logger.warning(f"Could not save state: {e}")
 
+# ── In-memory state ───────────────────────────────────────────────────────────
 connections: dict = {}
 stats = {"total_bytes": 0, "total_requests": 0, "total_errors": 0, "start_time": time.time()}
 error_logs: deque = deque(maxlen=50)
@@ -93,14 +95,23 @@ SUBS_LOCK = asyncio.Lock()
 RESELLERS: dict = {}
 RESELLERS_LOCK = asyncio.Lock()
 
-GLOBAL_SETTINGS = {"ips": [], "port": None}
+GLOBAL_SETTINGS = {
+    "ips": [],
+    "port": None
+}
 
 PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
 DEFAULT_PROTOCOL = "vless-ws"
 
 def log_activity(kind: str, message: str, level: str = "info"):
-    activity_logs.append({"kind": kind, "level": level, "message": message, "time": datetime.now().isoformat()})
+    activity_logs.append({
+        "kind": kind,
+        "level": level,
+        "message": message,
+        "time": datetime.now().isoformat(),
+    })
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
 SESSION_COOKIE = "rvg_session"
 SESSION_TTL = 60 * 60 * 24 * 7
 
@@ -149,6 +160,7 @@ async def require_reseller_auth(request: Request):
         raise HTTPException(status_code=401, detail="unauthorized")
     return s
 
+# ── Startup / Shutdown ────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup():
     global http_client
@@ -165,6 +177,7 @@ async def shutdown():
     if http_client:
         await http_client.aclose()
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def get_host() -> str:
     return os.environ.get("RAILWAY_PUBLIC_DOMAIN", CONFIG["host"])
 
@@ -187,7 +200,7 @@ async def fetch_ip_flag(ip: str) -> str:
         pass
     return ""
 
-def _format_vless_uri(uuid, ip, port, remark, protocol, original_host):
+def _format_vless_uri(uuid: str, ip: str, port: int, remark: str, protocol: str, original_host: str) -> str:
     if protocol == "vless-ws":
         path = f"/ws/{uuid}"
         params = {"encryption": "none", "security": "tls", "type": "ws", "host": original_host, "path": path, "sni": original_host, "fp": "chrome", "alpn": "http/1.1"}
@@ -198,44 +211,47 @@ def _format_vless_uri(uuid, ip, port, remark, protocol, original_host):
     query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
     return f"vless://{uuid}@{ip}:{port}?{query}#{quote(remark)}"
 
-def generate_vless_links(link_data, uuid, host):
+def generate_vless_links(link_data: dict, uuid: str, host: str) -> list[str]:
     links = []
     protocol = link_data.get("protocol", DEFAULT_PROTOCOL)
     is_personal = link_data.get("is_personal", False)
+    
     ips = link_data.get("ips") or []
     if not is_personal and GLOBAL_SETTINGS.get("ips"):
         ips = GLOBAL_SETTINGS["ips"]
     if not ips:
         ips = [host]
+        
     port = link_data.get("port")
     if not is_personal and GLOBAL_SETTINGS.get("port"):
         port = GLOBAL_SETTINGS["port"]
     if not port:
         port = 443
+
     for ip in ips:
         remark = f"VaslZone-{link_data['label']}-{ip}" if len(ips) > 1 else f"VaslZone-{link_data['label']}"
         links.append(_format_vless_uri(uuid, ip, port, remark, protocol, host))
     return links
 
-def uptime():
+def uptime() -> str:
     secs = int(time.time() - stats["start_time"])
     h, m, s = secs // 3600, (secs % 3600) // 60, secs % 60
     return f"{h:02d}:{m:02d}:{s:02d}"
 
-def parse_size_to_bytes(value, unit):
+def parse_size_to_bytes(value: float, unit: str) -> int:
     unit = unit.upper()
     if unit == "GB": return int(value * 1024 ** 3)
     if unit == "MB": return int(value * 1024 ** 2)
     if unit == "KB": return int(value * 1024)
     return int(value)
 
-def is_link_expired(link):
+def is_link_expired(link: dict) -> bool:
     exp = link.get("expires_at")
     if not exp: return False
     try: return datetime.now() > datetime.fromisoformat(exp)
     except: return False
 
-def is_link_allowed(link):
+def is_link_allowed(link: dict | None) -> bool:
     if link is None: return False
     if not link.get("active", True): return False
     if is_link_expired(link): return False
@@ -243,19 +259,20 @@ def is_link_allowed(link):
     if lb > 0 and link.get("used_bytes", 0) >= lb: return False
     return True
 
-def fmt_bytes(b):
+def fmt_bytes(b: int) -> str:
     if b < 1024: return f"{b} B"
     if b < 1024**2: return f"{b/1024:.1f} KB"
     if b < 1024**3: return f"{b/1024**2:.2f} MB"
     return f"{b/1024**3:.2f} GB"
 
-def client_ip(request):
+def client_ip(request: Request) -> str:
     fwd = request.headers.get("x-forwarded-for")
     if fwd: return fwd.split(",")[0].strip()
     real_ip = request.headers.get("x-real-ip")
     if real_ip: return real_ip.strip()
     return request.client.host if request.client else "نامشخص"
 
+# ── Default link ──────────────────────────────────────────────────────────────
 _default_link_created = False
 async def ensure_default_link():
     global _default_link_created
@@ -274,9 +291,10 @@ async def ensure_default_link():
     asyncio.create_task(save_state())
     _default_link_created = True
 
-async def check_reseller_capacity(reseller_id, new_limit_bytes, check_limit_only=False):
-    if not check_limit_only and new_limit_bytes == 0:
-        raise HTTPException(status_code=400, detail="نماینده نمی‌تواند کانفیگ با حجم نامحدود بسازد.")
+# ── Reseller Capacity ─────────────────────────────────────────────────────────
+async def check_reseller_capacity(reseller_id: str, new_limit_bytes: int):
+    if new_limit_bytes == 0:
+        raise HTTPException(status_code=400, detail="شما نمی‌توانید کانفیگ نامحدود بسازید.")
     async with RESELLERS_LOCK:
         res = RESELLERS.get(reseller_id)
         if not res or not res.get("active", True):
@@ -286,9 +304,11 @@ async def check_reseller_capacity(reseller_id, new_limit_bytes, check_limit_only
             for d in LINKS.values():
                 if d.get("creator_id") == reseller_id:
                     allocated += d.get("limit_bytes", 0)
-        if new_limit_bytes > 0 and allocated + new_limit_bytes > res.get("total_bytes", 0):
-            raise HTTPException(status_code=400, detail="حجم مجاز شما برای ساخت کانفیگ به پایان رسیده است.")
+        remaining = res.get("total_bytes", 0) - allocated
+        if new_limit_bytes > remaining:
+            raise HTTPException(status_code=400, detail=f"حجم درخواستی {fmt_bytes(new_limit_bytes)} بیشتر از حجم باقی‌مانده {fmt_bytes(remaining)} است.")
 
+# ── Basic endpoints ───────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
     return {"service": "VaslZone Gateway", "version": "9.2", "status": "active", "channel": "https://t.me/VaslZone"}
@@ -297,6 +317,7 @@ async def root():
 async def health():
     return {"status": "ok", "connections": len(connections), "uptime": uptime()}
 
+# ── Subscriptions ─────────────────────────────────────────────────────────────
 @app.get("/sub/{uuid}")
 async def subscription_single(uuid: str):
     import base64
@@ -343,6 +364,7 @@ async def sub_group_subscription(uuid_key: str, request: Request):
     return Response(content=content, media_type="text/plain",
         headers={"profile-title": quote(sub["name"]), "support-url": "https://t.me/VaslZone", "profile-update-interval": "12"})
 
+# ── Sub Groups (Admin) ────────────────────────────────────────────────────────
 @app.post("/api/subs")
 async def create_sub(request: Request, _=Depends(require_auth)):
     body = await request.json()
@@ -426,6 +448,7 @@ async def assign_link_to_sub(sub_id: str, request: Request, _=Depends(require_au
     asyncio.create_task(save_state())
     return {"ok": True}
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
 @app.post("/api/login")
 async def api_login(request: Request):
     body = await request.json()
@@ -435,7 +458,7 @@ async def api_login(request: Request):
     if hash_password(pw) == AUTH["password_hash"]:
         token = await create_session("admin", "admin")
         log_activity("auth", f"ورود ادمین از {ip}", "ok")
-        resp = JSONResponse({"ok": True, "role": "admin", "redirect": "/dashboard"})
+        resp = JSONResponse({"ok": True, "role": "admin"})
         resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
         return resp
     
@@ -444,7 +467,7 @@ async def api_login(request: Request):
             if res.get("active", True) and res.get("password_hash") == hash_password(pw):
                 token = await create_session("reseller", rid)
                 log_activity("auth", f"ورود نماینده {res['name']} از {ip}", "ok")
-                resp = JSONResponse({"ok": True, "role": "reseller", "redirect": "/reseller-panel"})
+                resp = JSONResponse({"ok": True, "role": "reseller"})
                 resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
                 return resp
     
@@ -478,6 +501,7 @@ async def api_change_password(request: Request, token=Depends(require_auth)):
     log_activity("auth", "رمز عبور پنل تغییر کرد", "ok")
     return {"ok": True}
 
+# ── Global IP Settings ────────────────────────────────────────────────────────
 @app.get("/api/settings/global-ips")
 async def get_global_ips(_=Depends(require_auth)):
     return GLOBAL_SETTINGS
@@ -491,20 +515,9 @@ async def update_global_ips(request: Request, _=Depends(require_auth)):
     log_activity("system", "تنظیمات IP/پورت سراسری بروزرسانی شد", "info")
     return {"ok": True, "settings": dict(GLOBAL_SETTINGS)}
 
+# ── Stats ─────────────────────────────────────────────────────────────────────
 @app.get("/stats")
-async def get_stats(request: Request):
-    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if not s: raise HTTPException(status_code=401)
-    if s["role"] == "reseller":
-        async with LINKS_LOCK: snap = {uid: d for uid, d in LINKS.items() if d.get("creator_id") == s["user_id"]}
-        return {
-            "active_connections": 0, "total_traffic_mb": round(sum(d.get("used_bytes",0) for d in snap.values()) / (1024**2), 2),
-            "total_requests": 0, "total_errors": 0,
-            "uptime": uptime(), "timestamp": datetime.now().isoformat(),
-            "hourly": {}, "recent_errors": [],
-            "links_count": len(snap), "active_links": sum(1 for l in snap.values() if is_link_allowed(l)),
-            "expired_links": sum(1 for l in snap.values() if is_link_expired(l)), "subs_count": 0, "resellers_count": 0
-        }
+async def get_stats(_=Depends(require_auth)):
     async with LINKS_LOCK: snap = dict(LINKS)
     return {
         "active_connections": len(connections), "total_traffic_mb": round(stats["total_bytes"] / (1024 ** 2), 2),
@@ -523,7 +536,7 @@ async def get_activity(_=Depends(require_auth)):
 @app.get("/api/connections")
 async def get_connections(_=Depends(require_auth)):
     async with LINKS_LOCK: snap = dict(LINKS)
-    grouped = {}
+    grouped: dict[str, dict] = {}
     for conn_id, c in connections.items():
         ip = c.get("ip", "نامشخص")
         link = snap.get(c.get("uuid"))
@@ -547,6 +560,7 @@ async def get_connections(_=Depends(require_auth)):
     result.sort(key=lambda x: x.get("last_connected_at") or "", reverse=True)
     return {"connections": result, "count": len(result), "raw_count": len(connections)}
 
+# ── Link Management ───────────────────────────────────────────────────────────
 @app.post("/api/links")
 async def create_link(request: Request):
     s = await require_reseller_auth(request)
@@ -716,6 +730,7 @@ async def delete_link(uid: str, request: Request):
     log_activity("link", f"کانفیگ {uid[:8]}... حذف شد", "err")
     return {"ok": True, "deleted": uid}
 
+# ── Reset Reseller Token ──────────────────────────────────────────────────────
 @app.post("/api/resellers/{rid}/reset-token")
 async def reset_reseller_token(rid: str, _=Depends(require_auth)):
     async with RESELLERS_LOCK:
@@ -724,6 +739,7 @@ async def reset_reseller_token(rid: str, _=Depends(require_auth)):
     asyncio.create_task(save_state())
     return {"ok": True, "login_token": RESELLERS[rid]["login_token"]}
 
+# ── Reseller Management (Admin Only) ──────────────────────────────────────────
 @app.get("/api/resellers")
 async def list_resellers(_=Depends(require_auth)):
     host = get_host()
@@ -796,13 +812,14 @@ async def delete_reseller(rid: str, _=Depends(require_auth)):
     log_activity("system", f"نماینده {rid[:8]}... حذف شد", "warn")
     return {"ok": True, "deleted": rid}
 
+# ── Reseller Report (Admin) ───────────────────────────────────────────────────
 @app.get("/api/resellers/{rid}/links")
 async def reseller_links(rid: str, _=Depends(require_auth)):
     async with LINKS_LOCK:
         result = [{"uuid": uid, **d} for uid, d in LINKS.items() if d.get("creator_id") == rid]
     return {"links": result}
 
-# ── Reseller Panel (صفحه ساده برای نماینده) ──
+# ── Reseller Panel ────────────────────────────────────────────────────────────
 @app.get("/reseller-panel", response_class=HTMLResponse)
 async def reseller_panel(request: Request):
     s = await get_session_data(request.cookies.get(SESSION_COOKIE))
@@ -814,67 +831,56 @@ async def reseller_panel(request: Request):
         if not res or not res.get("active", True):
             await destroy_session(request.cookies.get(SESSION_COOKIE))
             return RedirectResponse(url="/login")
-        name = res["name"]
-        total = res["total_bytes"]
+        rname = res["name"]
+        rtotal = res["total_bytes"]
     async with LINKS_LOCK:
-        used = sum(d.get("used_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
-        allocated = sum(d.get("limit_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
-        remaining = max(0, total - allocated)
-        cnt = sum(1 for d in LINKS.values() if d.get("creator_id") == rid)
-    pct = min(100, round(used/total*100)) if total > 0 else 0
-    bar_col = "var(--red)" if pct > 90 else ("var(--amber)" if pct > 70 else "var(--green)")
-    return HTMLResponse(content=f"""<!DOCTYPE html>
-<html lang="fa" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+        rused = sum(d.get("used_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
+        ralloc = sum(d.get("limit_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
+        rrem = max(0, rtotal - ralloc)
+        rcnt = sum(1 for d in LINKS.values() if d.get("creator_id")==rid)
+    pct = min(100, round(rused/rtotal*100)) if rtotal > 0 else 0
+    bar = "#EF4444" if pct > 90 else ("#F59E0B" if pct > 70 else "#10B981")
+    return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="fa" dir="rtl"><head><meta charset="UTF-8">
 <title>پنل نماینده</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-*{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:'Vazirmatn',sans-serif;background:#060f1d;color:#E8F4FF;padding:20px;min-height:100vh}}
-.wrap{{max-width:500px;margin:0 auto}}
-h1{{font-size:18px;margin-bottom:4px}}
-.sub{{color:#3D6B8E;font-size:12px;margin-bottom:20px}}
-.card{{background:rgba(10,22,40,0.9);border:1px solid rgba(139,92,246,0.2);border-radius:16px;padding:20px;margin-bottom:14px}}
-.row{{display:flex;gap:10px;flex-wrap:wrap}}
-.box{{flex:1;min-width:100px;padding:14px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:12px;text-align:center}}
-.box .lbl{{font-size:9px;color:#3D6B8E;text-transform:uppercase;margin-bottom:5px}}
-.box .val{{font-size:20px;font-weight:800}}
-.bar{{height:6px;background:rgba(139,92,246,0.1);border-radius:4px;overflow:hidden;margin:12px 0}}
-.bar-f{{height:100%;border-radius:4px;background:{bar_col};width:{pct}%}}
-.info{{font-size:12px;color:#7BAED4;line-height:2}}
-.btn{{font-family:inherit;font-size:12px;padding:8px 16px;border-radius:9px;border:1px solid rgba(139,92,246,0.2);background:transparent;color:#7BAED4;cursor:pointer}}
-.btn:hover{{background:rgba(139,92,246,0.1)}}
-.ft{{text-align:center;padding-top:14px;font-size:10px;color:#3D6B8E}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Vazirmatn,sans-serif;background:#060f1d;color:#E8F4FF;padding:16px}
+.w{max-width:500px;margin:0 auto}
+.hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.nn{font-size:16px;font-weight:700}
+.ss{color:#3D6B8E;font-size:11px}
+.cd{background:rgba(10,22,40,0.9);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:18px;margin-bottom:12px}
+.rw{display:flex;gap:10px;flex-wrap:wrap}
+.bx{flex:1;min-width:100px;padding:12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:11px;text-align:center}
+.bl{font-size:9px;color:#3D6B8E;margin-bottom:4px}
+.bv{font-size:18px;font-weight:800}
+.br{height:5px;background:rgba(139,92,246,0.1);border-radius:3px;overflow:hidden;margin:10px 0}
+.bf{height:100%;border-radius:3px;background:""" + bar + """;width:""" + str(pct) + """%}
+.btn{font-family:inherit;font-size:11px;padding:7px 14px;border-radius:8px;border:1px solid rgba(139,92,246,0.2);background:transparent;color:#7BAED4;cursor:pointer;text-decoration:none}
+.ft{text-align:center;padding-top:12px;font-size:9px;color:#3D6B8E}
 </style></head><body>
-<div class="wrap">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-<div><h1>{name}</h1><div class="sub">نماینده VaslZone</div></div>
-<button class="btn" onclick="fetch('/api/logout',{{method:'POST'}}).then(()=>location.href='/login')"><i class="ti ti-logout"></i> خروج</button>
-</div>
-<div class="card">
-<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px">
-<span>مصرف: {fmt_bytes(used)}</span><span>از {fmt_bytes(total)}</span></div>
-<div class="bar"><div class="bar-f"></div></div>
-<div style="display:flex;justify-content:space-between;font-size:10px;color:#3D6B8E">
-<span>باقی: {fmt_bytes(remaining)}</span><span>{pct}%</span></div>
-</div>
-<div class="row">
-<div class="box"><div class="lbl">حجم کل</div><div class="val">{fmt_bytes(total)}</div></div>
-<div class="box"><div class="lbl">باقی‌مانده</div><div class="val" style="color:{bar_col}">{fmt_bytes(remaining)}</div></div>
-<div class="box"><div class="lbl">کانفیگ‌ها</div><div class="val">{cnt}</div></div>
-</div>
-<div class="card"><div class="info">
-<i class="ti ti-shield-check" style="color:var(--accent)"></i>
-<b>محدودیت‌های شما:</b><br>
-• حداکثر حجم: {fmt_bytes(total)}<br>
-• باقی‌مانده: {fmt_bytes(remaining)}<br>
-• ساخت کانفیگ نامحدود: ممنوع ❌<br>
-• دسترسی به تنظیمات: فقط کانفیگ‌های خودت
-</div></div>
-<div class="ft">VaslZone Gateway · <a href="https://t.me/VaslZone" style="color:#8B5CF6">@VaslZone</a></div>
-</div></body></html>""")
+<div class="w">
+<div class="hd"><div><div class="nn">""" + rname + """</div><div class="ss">نماینده</div></div>
+<a class="btn" href="#" onclick="fetch('/api/logout',{method:'POST'}).then(()=>location.href='/login');return false">خروج</a></div>
+<div class="cd"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>مصرف: """ + fmt_bytes(rused) + """</span><span>از """ + fmt_bytes(rtotal) + """</span></div>
+<div class="br"><div class="bf"></div></div>
+<div style="display:flex;justify-content:space-between;font-size:9px;color:#3D6B8E"><span>باقی: """ + fmt_bytes(rrem) + """</span><span>""" + str(pct) + """%</span></div></div>
+<div class="rw">
+<div class="bx"><div class="bl">حجم کل</div><div class="bv">""" + fmt_bytes(rtotal) + """</div></div>
+<div class="bx"><div class="bl">باقی‌مانده</div><div class="bv" style="color:""" + bar + """">""" + fmt_bytes(rrem) + """</div></div>
+<div class="bx"><div class="bl">کانفیگ‌ها</div><div class="bv">""" + str(rcnt) + """</div></div></div>
+<div class="cd"><b style="font-size:12px;color:#7BAED4">محدودیت‌ها:</b><br>
+<span style="font-size:11px;color:#7BAED4;line-height:2">
+• حجم مجاز: """ + fmt_bytes(rtotal) + """<br>
+• باقی‌مانده: """ + fmt_bytes(rrem) + """<br>
+• کانفیگ نامحدود: ممنوع ❌<br>
+• حداکثر هر کانفیگ: """ + fmt_bytes(rrem) + """
+</span></div>
+<div class="ft">VaslZone Gateway</div></div></body></html>""")
 
-# ── Reseller Token Login ──
+# ── Reseller Token Login ──────────────────────────────────────────────────────
 @app.get("/r/{login_token}")
 async def reseller_token_login(login_token: str):
     async with RESELLERS_LOCK:
@@ -887,15 +893,15 @@ async def reseller_token_login(login_token: str):
                 return resp
     return HTMLResponse("<h2 style='padding:40px;font-family:sans-serif'>لینک نامعتبر است</h2>", status_code=404)
 
-# ── VLESS Relay ──
+# ── VLESS Relay ───────────────────────────────────────────────────────────────
 from relay_vless import RELAY_BUF, parse_vless_header, check_and_use, relay_ws_to_tcp, relay_tcp_to_ws, websocket_tunnel
 app.add_api_websocket_route("/ws/{uuid}", websocket_tunnel)
 
-# ── XHTTP ──
+# ── XHTTP ─────────────────────────────────────────────────────────────────────
 from xhttp_siz10 import router as xhttp_router
 app.include_router(xhttp_router)
 
-# ── HTTP Proxy ──
+# ── HTTP Proxy ────────────────────────────────────────────────────────────────
 _HOP = {"connection","keep-alive","proxy-authenticate","proxy-authorization","te","trailers","transfer-encoding","upgrade","content-encoding","content-length"}
 @app.api_route("/proxy/{target_url:path}", methods=["GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"])
 async def http_proxy(target_url: str, request: Request):
@@ -914,7 +920,7 @@ async def http_proxy(target_url: str, request: Request):
         error_logs.append({"error": str(exc), "url": target_url, "time": datetime.now().isoformat()})
         raise HTTPException(status_code=502, detail=f"Proxy error: {exc}")
 
-# ── Public Sub Page ──
+# ── Public Sub Page ───────────────────────────────────────────────────────────
 @app.get("/p/{uuid_key}", response_class=HTMLResponse)
 async def public_sub_page(uuid_key: str, request: Request):
     from pages import get_public_page_html
@@ -955,21 +961,22 @@ async def public_sub_data(uuid_key: str, request: Request):
             "active_connections": sum(l["connections"] for l in links_out),
             "total_used_fmt": fmt_bytes(total_used), "links": links_out}
 
+# ── HTML Pages ────────────────────────────────────────────────────────────────
 from pages import LOGIN_HTML, DASHBOARD_HTML
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if s and s["role"] == "admin": return RedirectResponse(url="/dashboard")
+    if s:
+        if s["role"] == "admin": return RedirectResponse(url="/dashboard")
+        if s["role"] == "reseller": return RedirectResponse(url="/reseller-panel")
     return HTMLResponse(content=LOGIN_HTML)
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if not s:
-        return RedirectResponse(url="/login")
-    if s["role"] == "reseller":
-        return RedirectResponse(url="/reseller-panel")
+    if not s: return RedirectResponse(url="/login")
+    if s["role"] == "reseller": return RedirectResponse(url="/reseller-panel")
     await ensure_default_link()
     return HTMLResponse(content=DASHBOARD_HTML)
 
