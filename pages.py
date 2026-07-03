@@ -1400,14 +1400,13 @@ async function createLink(){
   const count=parseInt(document.getElementById('nl-count').value)||1;
   const is_personal=document.getElementById('nl-personal').checked;
   const body={label,limit_value:val||0,limit_unit:unit,expires_days:exp||0,note,sub_id,protocol,ips:addr,port,is_personal};
+  const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{
     let r;
-    if(count>1){body.count=count;r=await authF('/api/links/bulk','POST',body);}
-    else{r=await authF('/api/links','POST',body);}
+    if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);}
+    else{r=await authF('/api/links',opts);}
     if(!r.ok)throw new Error('failed');
-    const d=await r.json().catch(()=>({}));
-    if(d.vless_bulk)toast(count+' کانفیگ ساخته شد ✓','ok');
-    else toast('کانفیگ ساخته شد ✓','ok');
+    toast(count>1?count+' کانفیگ ساخته شد ✓':'کانفیگ ساخته شد ✓','ok');
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nl-count').value=1;
     document.getElementById('nl-personal').checked=false;
