@@ -203,11 +203,11 @@ async def fetch_ip_flag(ip: str) -> str:
 def _format_vless_uri(uuid: str, ip: str, port: int, remark: str, protocol: str, original_host: str) -> str:
     if protocol == "vless-ws":
         path = f"/ws/{uuid}"
-        params = {"encryption": "none", "security": "tls", "type": "ws", "host": ip, "path": path, "sni": ip, "fp": "chrome", "alpn": "http/1.1"}
+        params = {"encryption": "none", "security": "tls", "type": "ws", "host": ip, "path": path, "sni": original_host, "fp": "chrome", "alpn": "http/1.1"}
     else:
         mode = protocol.replace("xhttp-", "")
         path = f"/xhttp-siz10/{mode}/{uuid}"
-        params = {"encryption": "none", "security": "tls", "type": "xhttp", "mode": mode, "host": ip, "path": path, "sni": ip, "fp": "chrome", "alpn": "h2,http/1.1"}
+        params = {"encryption": "none", "security": "tls", "type": "xhttp", "mode": mode, "host": ip, "path": path, "sni": original_host, "fp": "chrome", "alpn": "h2,http/1.1"}
     query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
     return f"vless://{uuid}@{ip}:{port}?{query}#{quote(remark)}"
 
