@@ -1009,7 +1009,10 @@ async def login_page(request: Request):
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if not s or s["role"] != "admin": return RedirectResponse(url="/login")
+    if not s:
+        return RedirectResponse(url="/login")
+    if s["role"] == "reseller":
+        return RedirectResponse(url="/reseller-panel")
     await ensure_default_link()
     return HTMLResponse(content=DASHBOARD_HTML)
 
