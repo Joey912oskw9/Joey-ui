@@ -1,4 +1,4 @@
-# pages.py  -  VaslZone Gateway
+# pages.py  -  VaslZone Gateway v9.3
 # شامل: LOGIN_HTML, DASHBOARD_HTML, get_public_page_html()
 
 LOGIN_HTML = r"""<!DOCTYPE html>
