@@ -220,7 +220,7 @@ def generate_vless_links(link_data: dict, uuid: str, host: str) -> list[str]:
     if not is_personal and GLOBAL_SETTINGS.get("ips"):
         ips = GLOBAL_SETTINGS["ips"]
     if not ips:
-        ips = [ip]
+        ips = [host]
         
     port = link_data.get("port")
     if not is_personal and GLOBAL_SETTINGS.get("port"):
