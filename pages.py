@@ -766,33 +766,6 @@ a{color:inherit;text-decoration:none}
 </div>
 
 <div class="modal-bg" id="modal-res">
-  <div class="modal-v2" style="max-width:460px">
-    <div class="modal-v2-head">
-      <button class="modal-v2-close" onclick="closeModal('modal-res')"><i class="ti ti-x"></i></button>
-      <div class="modal-v2-icon"><i class="ti ti-user-plus"></i></div>
-      <div class="modal-v2-title">نماینده جدید</div>
-      <div class="modal-v2-sub">یک نماینده با دسترسی محدود بساز</div>
-    </div>
-    <div class="modal-v2-body">
-      <div class="modal-v2-field">
-        <label><i class="ti ti-user"></i> نام نماینده</label>
-        <input class="modal-v2-input" id="r-name" placeholder="مثلاً: علی">
-      </div>
-      <div class="modal-v2-field">
-        <label><i class="ti ti-lock"></i> رمز ورود</label>
-        <input class="modal-v2-input" id="r-pw" type="password" placeholder="حداقل ۴ کاراکتر">
-      </div>
-      <div class="modal-v2-field">
-        <label><i class="ti ti-database"></i> حجم مجاز (GB)</label>
-        <input class="modal-v2-input" id="r-gb" type="number" placeholder="مثلاً: 50" min="1">
-      </div>
-      <div class="modal-v2-footer">
-        <button class="btn btn-o" onclick="closeModal('modal-res')" style="flex:.6">انصراف</button>
-        <button class="btn btn-pur" onclick="createReseller()"><i class="ti ti-user-plus"></i> ساخت نماینده</button>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="modal-bg" id="modal-edit-res">
   <div class="modal-v2" style="max-width:460px">
     <div class="modal-v2-head">
@@ -803,30 +776,28 @@ a{color:inherit;text-decoration:none}
     </div>
     <div class="modal-v2-body">
       <input type="hidden" id="er-id">
+      <div class="modal-v2-field"><label>نام</label><input class="modal-v2-input" id="er-name"></div>
+      <div class="modal-v2-field"><label>رمز جدید (خالی = بدون تغییر)</label><input class="modal-v2-input" id="er-pw" type="password"></div>
+      <div class="modal-v2-field"><label>حجم (GB)</label><input class="modal-v2-input" id="er-gb" type="number"></div>
       <div class="modal-v2-field">
-        <label><i class="ti ti-user"></i> نام نماینده</label>
-        <input class="modal-v2-input" id="er-name" placeholder="نام">
+        <label>وضعیت</label>
+        <button class="btn btn-sm" id="er-status-btn" onclick="toggleResStatus()"></button>
+        <span id="er-status-label" style="font-size:11px;color:var(--t3);margin-right:8px"></span>
       </div>
-      <div class="modal-v2-field">
-        <label><i class="ti ti-lock"></i> رمز جدید (خالی = بدون تغییر)</label>
-        <input class="modal-v2-input" id="er-pw" type="password" placeholder="خالی بذار = رمز فعلی می‌مونه">
-      </div>
-      <div class="modal-v2-field">
-        <label><i class="ti ti-database"></i> حجم مجاز (GB)</label>
-        <input class="modal-v2-input" id="er-gb" type="number" min="1">
-      </div>
-      <div class="modal-v2-field" style="margin-bottom:0">
-        <label><i class="ti ti-toggle-right"></i> وضعیت دسترسی</label>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
-          <button class="btn btn-sm" id="er-status-btn" onclick="toggleResStatus()" style="min-width:90px;justify-content:center"></button>
-          <span id="er-status-label" style="font-size:11px;color:var(--t3)"></span>
-        </div>
-      </div>
-      <div class="cl" style="margin-top:14px"><i class="ti ti-info-circle"></i><span>نماینده غیرفعال نمی‌تونه به پنل وارد بشه یا کانفیگ جدید بسازه</span></div>
       <div class="modal-v2-footer">
         <button class="btn btn-o" onclick="closeModal('modal-edit-res')" style="flex:.6">انصراف</button>
-        <button class="btn btn-pur" onclick="saveEditReseller()"><i class="ti ti-check"></i> ذخیره تغییرات</button>
+        <button class="btn btn-pur" onclick="saveEditReseller()"><i class="ti ti-check"></i> ذخیره</button>
       </div>
+    </div>
+  </div>
+</div>
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-res')"><i class="ti ti-x"></i></button>
+    <div class="modal-title"><i class="ti ti-user-plus"></i> نماینده جدید</div>
+    <div class="fg" style="margin-bottom:10px"><label>نام</label><input class="fi" id="r-name" style="width:100%"></div>
+    <div class="fg" style="margin-bottom:10px"><label>رمز</label><input class="fi" id="r-pw" type="password" style="width:100%"></div>
+    <div class="fg" style="margin-bottom:15px"><label>حجم (GB)</label><input class="fi" id="r-gb" type="number" style="width:100%"></div>
+    <button class="btn btn-p" onclick="createReseller()"><i class="ti ti-user-plus"></i> ذخیره</button>
     </div>
   </div>
 </div>
@@ -981,7 +952,7 @@ a{color:inherit;text-decoration:none}
       <div class="cp-block mb16">
         <div class="cp-block-label"><i class="ti ti-plug-connected"></i> پروتکل انتقال</div>
         <select id="nl-proto" style="display:none">
-          <option value="vless-ws">VLESS / WebSocket</option>
+        <option value="vless-ws">VLESS / WebSocket</option>
           <option value="xhttp-packet-up">XHTTP Ultra · packet-up</option>
           <option value="xhttp-stream-up">XHTTP Ultra · stream-up</option>
         </select>
@@ -1249,14 +1220,9 @@ a{color:inherit;text-decoration:none}
   </div>
 </section>
 <section class="pg" id="pg-resellers">
-  <div class="topbar">
-    <div><div class="tb-title"><i class="ti ti-users"></i> نمایندگان</div><div class="tb-sub">مدیریت نمایندگان فروش با دسترسی محدود</div></div>
-    <div class="tb-right">
-      <span class="badge bg-purple" id="res-nb">۰</span>
-      <button class="btn btn-pur" onclick="openModal('modal-res')"><i class="ti ti-user-plus"></i> نماینده جدید</button>
-    </div>
-  </div>
-  <div id="res-list" class="card" style="padding:0;overflow:hidden">بارگذاری...</div>
+  <div class="topbar"><div><div class="tb-title"><i class="ti ti-users"></i> نمایندگان</div></div>
+  <div class="tb-right"><button class="btn btn-pur" onclick="openModal('modal-res')"><i class="ti ti-user-plus"></i> جدید</button></div></div>
+  <div class="card"><div id="res-list">بارگذاری...</div></div>
 </section>
 <section class="pg" id="pg-ipsettings">
   <div class="topbar"><div><div class="tb-title"><i class="ti ti-world"></i> IP سراسری</div></div></div>
@@ -1892,241 +1858,44 @@ async function loadResellers(){
     const d=await(await authF('/api/resellers')).json();
     const el=document.getElementById('res-list');
     document.getElementById('res-nb').textContent=(d.resellers||[]).length;
-    if(!d.resellers||!d.resellers.length){
-      el.innerHTML='<div class="empty" style="padding:50px"><i class="ti ti-users"></i><p>هنوز نماینده‌ای وجود ندارد</p></div>';
-      return;
-    }
+    if(!d.resellers||!d.resellers.length){el.innerHTML='<div class="empty" style="padding:50px"><i class="ti ti-users"></i><p>هنوز نماینده‌ای نیست</p></div>';return}
     const host=location.host;
-    el.innerHTML=`
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="background:var(--accent-d);color:var(--t2)">
-            <th style="padding:12px 15px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.06em">نام</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">حجم کل</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">مصرف شده</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">باقی‌مانده</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">کانفیگ</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">وضعیت</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">لینک</th>
-            <th style="padding:12px 15px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em">عملیات</th>
-          </tr>
-        </thead>
-        <tbody>
-        ${d.resellers.map(r=>{
-          const pct=Math.min(100,r.total_bytes>0?Math.round((r.allocated_bytes/r.total_bytes)*100):0);
-          const barColor=pct>90?'var(--red)':pct>70?'var(--amber)':'var(--green)';
-          return `<tr style="border-top:1px solid var(--card-b)">
-            <td style="padding:14px 15px;font-weight:700;color:var(--t1)">${esc(r.name)}</td>
-            <td style="padding:14px 15px;text-align:center;color:var(--t1)">${esc(r.total_fmt)}</td>
-            <td style="padding:14px 15px;text-align:center">
-              <div style="font-size:11px;color:var(--t1);margin-bottom:3px">${esc(r.allocated_fmt)}</div>
-              <div style="width:80px;height:4px;border-radius:3px;background:var(--accent-d);margin:0 auto;overflow:hidden"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s"></div></div>
-            </td>
-            <td style="padding:14px 15px;text-align:center;color:${r.remaining_bytes>0?'var(--green-t)':'var(--red-t)'};font-weight:700">${esc(r.remaining_fmt)}</td>
-            <td style="padding:14px 15px;text-align:center;color:var(--t1)">${toFa(r.links_count)}</td>
-            <td style="padding:14px 15px;text-align:center">
-              <span class="badge ${r.active?'bg-green':'bg-red'}"><span class="dot ${r.active?'dg':'dr'} ${r.active?'pulse':''}"></span> ${r.active?'فعال':'غیرفعال'}</span>
-            </td>
-            <td style="padding:14px 15px;text-align:center">
-              <button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText('${host}').then(()=>toast('لینک پنل کپی شد','ok'))" title="کپی لینک پنل"><i class="ti ti-copy"></i></button>
-            </td>
-            <td style="padding:14px 15px;text-align:left;white-space:nowrap">
-              <button class="btn btn-sm btn-g btn-icon" onclick="openEditRes('${r.id}','${esc(r.name)}','${r.total_bytes}','${r.active}')" title="ویرایش"><i class="ti ti-edit"></i></button>
-              <button class="btn btn-sm btn-d btn-icon" onclick="deleteReseller('${r.id}')" title="حذف"><i class="ti ti-trash"></i></button>
-            </td>
-          </tr>`;
-        }).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  }catch(e){console.error(e)}
+    el.innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--accent-d);color:var(--t2)"><th style="padding:12px 15px;text-align:right">نام</th><th style="padding:12px 15px;text-align:center">حجم کل</th><th style="padding:12px 15px;text-align:center">مصرف</th><th style="padding:12px 15px;text-align:center">باقی</th><th style="padding:12px 15px;text-align:center">کانفیگ</th><th style="padding:12px 15px;text-align:center">وضعیت</th><th style="padding:12px 15px;text-align:center">لینک</th><th style="padding:12px 15px;text-align:left">عملیات</th></tr></thead><tbody>'+
+    d.resellers.map(r=>'<tr style="border-top:1px solid var(--card-b)"><td style="padding:14px 15px;font-weight:700">'+esc(r.name)+'</td><td style="padding:14px 15px;text-align:center">'+esc(r.total_fmt)+'</td><td style="padding:14px 15px;text-align:center">'+esc(r.allocated_fmt)+'</td><td style="padding:14px 15px;text-align:center;color:'+(r.remaining_bytes>0?'var(--green-t)':'var(--red-t)')+'">'+esc(r.remaining_fmt)+'</td><td style="padding:14px 15px;text-align:center">'+toFa(r.links_count)+'</td><td style="padding:14px 15px;text-align:center"><span class="badge '+(r.active?'bg-green':'bg-red')+'"><span class="dot '+(r.active?'dg pulse':'dr')+'"></span> '+(r.active?'فعال':'غیرفعال')+'</span></td><td style="padding:14px 15px;text-align:center"><button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText(\''+host+'\').then(()=>toast(\'لینک کپی شد\',\'ok\'))"><i class="ti ti-copy"></i></button></td><td style="padding:14px 15px;text-align:left"><button class="btn btn-sm btn-g btn-icon" onclick="openEditRes(\''+r.id+'\',\''+esc(r.name)+'\',\''+r.total_bytes+'\',\''+r.active+'\')" title="ویرایش"><i class="ti ti-edit"></i></button><button class="btn btn-sm btn-d btn-icon" onclick="deleteReseller(\''+r.id+'\')" title="حذف"><i class="ti ti-trash"></i></button></td></tr>').join('')+
+    '</tbody></table></div>';
+  }catch(e){}
 }
-
 async function createReseller(){
-  const name=document.getElementById('r-name').value.trim();
-  const pw=document.getElementById('r-pw').value.trim();
-  const gb=document.getElementById('r-gb').value;
-  if(!name||!pw||!gb){toast('همه فیلدها رو پر کن','err');return}
-  try{
-    const r=await authF('/api/resellers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,password:pw,limit_gb:parseFloat(gb)})});
-    if(!r.ok)throw new Error();
-    ['r-name','r-pw','r-gb'].forEach(id=>document.getElementById(id).value='');
-    closeModal('modal-res');
-    toast('نماینده ساخته شد ✓','ok');
-    loadResellers();
-  }catch(e){toast('خطا در ساخت','err')}
-}
-
-let currentEditResId=null, currentEditResActive=true;
-
-function openEditRes(id,name,totalBytes,active){
-  currentEditResId=id;
-  currentEditResActive=active==='true';
-  document.getElementById('er-id').value=id;
-  document.getElementById('er-name').value=name;
-  document.getElementById('er-pw').value='';
-  document.getElementById('er-gb').value=Math.round(parseInt(totalBytes)/1024/1024/1024);
-  updateResStatusUI();
-  openModal('modal-edit-res');
-}
-
-function toggleResStatus(){
-  currentEditResActive=!currentEditResActive;
-  updateResStatusUI();
-}
-
-function updateResStatusUI(){
-  const btn=document.getElementById('er-status-btn');
-  const lbl=document.getElementById('er-status-label');
-  btn.className='btn btn-sm '+(currentEditResActive?'bg-green':'bg-red');
-  btn.innerHTML=currentEditResActive?'<span class="dot dg pulse"></span> فعال':'<span class="dot dr"></span> غیرفعال';
-  lbl.textContent=currentEditResActive?'نماینده می‌تونه وارد پنل بشه و کانفیگ بسازه':'نماینده به پنل دسترسی نداره';
-  lbl.style.color=currentEditResActive?'var(--green-t)':'var(--red-t)';
-}
-
-async function saveEditReseller(){
-  const id=document.getElementById('er-id').value;
-  const name=document.getElementById('er-name').value.trim();
-  const pw=document.getElementById('er-pw').value.trim();
-  const gb=document.getElementById('er-gb').value;
-  if(!name||!gb){toast('نام و حجم رو پر کن','err');return}
-  const body={name,limit_gb:parseFloat(gb),active:currentEditResActive};
-  if(pw)body.password=pw;
-  try{
-    const r=await authF('/api/resellers/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok)throw new Error();
-    closeModal('modal-edit-res');
-    toast('نماینده ویرایش شد ✓','ok');
-    loadResellers();
-  }catch(e){toast('خطا در ویرایش','err')}
-}
-
-async function deleteReseller(id){
-  if(!confirm('حذف نماینده؟ کانفیگ‌هاش حذف نمی‌شن.'))return;
-  try{const r=await authF('/api/resellers/'+id,{method:'DELETE'});if(!r.ok)throw new Error();toast('نماینده حذف شد ✓','ok');loadResellers();}catch(e){toast('خطا','err')}
-}
-async function loadResellers(){
-  try{
-    const d=await(await authF('/api/resellers')).json();
-    const el=document.getElementById('res-list');
-    document.getElementById('res-nb').textContent=(d.resellers||[]).length;
-    if(!d.resellers||!d.resellers.length){
-      el.innerHTML='<div class="empty" style="padding:50px"><i class="ti ti-users"></i><p>هنوز نماینده‌ای وجود ندارد</p></div>';
-      return;
-    }
-    const host=location.host;
-    el.innerHTML=`
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="background:var(--accent-d);color:var(--t2)">
-            <th style="padding:12px 15px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.06em">نام</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">حجم کل</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">مصرف شده</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">باقی‌مانده</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">کانفیگ</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">وضعیت</th>
-            <th style="padding:12px 15px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.06em">لینک</th>
-            <th style="padding:12px 15px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em">عملیات</th>
-          </tr>
-        </thead>
-        <tbody>
-        ${d.resellers.map(r=>{
-          const pct=Math.min(100,r.total_bytes>0?Math.round((r.allocated_bytes/r.total_bytes)*100):0);
-          const barColor=pct>90?'var(--red)':pct>70?'var(--amber)':'var(--green)';
-          return `<tr style="border-top:1px solid var(--card-b)">
-            <td style="padding:14px 15px;font-weight:700;color:var(--t1)">${esc(r.name)}</td>
-            <td style="padding:14px 15px;text-align:center;color:var(--t1)">${esc(r.total_fmt)}</td>
-            <td style="padding:14px 15px;text-align:center">
-              <div style="font-size:11px;color:var(--t1);margin-bottom:3px">${esc(r.allocated_fmt)}</div>
-              <div style="width:80px;height:4px;border-radius:3px;background:var(--accent-d);margin:0 auto;overflow:hidden"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .4s"></div></div>
-            </td>
-            <td style="padding:14px 15px;text-align:center;color:${r.remaining_bytes>0?'var(--green-t)':'var(--red-t)'};font-weight:700">${esc(r.remaining_fmt)}</td>
-            <td style="padding:14px 15px;text-align:center;color:var(--t1)">${toFa(r.links_count)}</td>
-            <td style="padding:14px 15px;text-align:center">
-              <span class="badge ${r.active?'bg-green':'bg-red'}"><span class="dot ${r.active?'dg':'dr'} ${r.active?'pulse':''}"></span> ${r.active?'فعال':'غیرفعال'}</span>
-            </td>
-            <td style="padding:14px 15px;text-align:center">
-              <button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText('${host}').then(()=>toast('لینک پنل کپی شد','ok'))" title="کپی لینک پنل"><i class="ti ti-copy"></i></button>
-            </td>
-            <td style="padding:14px 15px;text-align:left;white-space:nowrap">
-              <button class="btn btn-sm btn-g btn-icon" onclick="openEditRes('${r.id}','${esc(r.name)}','${r.total_bytes}','${r.active}')" title="ویرایش"><i class="ti ti-edit"></i></button>
-              <button class="btn btn-sm btn-d btn-icon" onclick="deleteReseller('${r.id}')" title="حذف"><i class="ti ti-trash"></i></button>
-            </td>
-          </tr>`;
-        }).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  }catch(e){console.error(e)}
-}
-
-async function createReseller(){
-  const name=document.getElementById('r-name').value.trim();
-  const pw=document.getElementById('r-pw').value.trim();
-  const gb=document.getElementById('r-gb').value;
-  if(!name||!pw||!gb){toast('همه فیلدها رو پر کن','err');return}
-  try{
-    const r=await authF('/api/resellers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,password:pw,limit_gb:parseFloat(gb)})});
-    if(!r.ok)throw new Error();
-    ['r-name','r-pw','r-gb'].forEach(id=>document.getElementById(id).value='');
-    closeModal('modal-res');
-    toast('نماینده ساخته شد ✓','ok');
-    loadResellers();
-  }catch(e){toast('خطا در ساخت','err')}
-}
-
-let currentEditResId=null, currentEditResActive=true;
-
-function openEditRes(id,name,totalBytes,active){
-  currentEditResId=id;
-  currentEditResActive=active==='true';
-  document.getElementById('er-id').value=id;
-  document.getElementById('er-name').value=name;
-  document.getElementById('er-pw').value='';
-  document.getElementById('er-gb').value=Math.round(parseInt(totalBytes)/1024/1024/1024);
-  updateResStatusUI();
-  openModal('modal-edit-res');
-}
-
-function toggleResStatus(){
-  currentEditResActive=!currentEditResActive;
-  updateResStatusUI();
-}
-
-function updateResStatusUI(){
-  const btn=document.getElementById('er-status-btn');
-  const lbl=document.getElementById('er-status-label');
-  btn.className='btn btn-sm '+(currentEditResActive?'bg-green':'bg-red');
-  btn.innerHTML=currentEditResActive?'<span class="dot dg pulse"></span> فعال':'<span class="dot dr"></span> غیرفعال';
-  lbl.textContent=currentEditResActive?'نماینده می‌تونه وارد پنل بشه و کانفیگ بسازه':'نماینده به پنل دسترسی نداره';
-  lbl.style.color=currentEditResActive?'var(--green-t)':'var(--red-t)';
-}
-
-async function saveEditReseller(){
-  const id=document.getElementById('er-id').value;
-  const name=document.getElementById('er-name').value.trim();
-  const pw=document.getElementById('er-pw').value.trim();
-  const gb=document.getElementById('er-gb').value;
-  if(!name||!gb){toast('نام و حجم رو پر کن','err');return}
-  const body={name,limit_gb:parseFloat(gb),active:currentEditResActive};
-  if(pw)body.password=pw;
-  try{
-    const r=await authF('/api/resellers/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok)throw new Error();
-    closeModal('modal-edit-res');
-    toast('نماینده ویرایش شد ✓','ok');
-    loadResellers();
-  }catch(e){toast('خطا در ویرایش','err')}
-}
-
-async function deleteReseller(id){
-  if(!confirm('حذف نماینده؟ کانفیگ‌هاش حذف نمی‌شن.'))return;
-  try{const r=await authF('/api/resellers/'+id,{method:'DELETE'});if(!r.ok)throw new Error();toast('نماینده حذف شد ✓','ok');loadResellers();}catch(e){toast('خطا','err')}
+  await fetch('/api/resellers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('r-name').value,password:document.getElementById('r-pw').value,limit_gb:document.getElementById('r-gb').value})});
+  closeModal('modal-res'); loadResellers();
 }
 async function deleteReseller(id){if(!confirm('حذف?'))return;await fetch('/api/resellers/'+id,{method:'DELETE'});loadResellers();}
 async function saveGlobalIPs(){await fetch('/api/settings/global-ips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ips:document.getElementById('g-ips').value.split(',').filter(x=>x.trim()),port:document.getElementById('g-port').value})});toast('ذخیره شد','ok');}
+// === نمایندگان کامل ===
+let currentEditResId=null,currentEditResActive=true;
+function openEditRes(id,name,totalBytes,active){
+  currentEditResId=id; currentEditResActive=active==='true';
+  document.getElementById('er-id').value=id;
+  document.getElementById('er-name').value=name;
+  document.getElementById('er-pw').value='';
+  document.getElementById('er-gb').value=Math.round(parseInt(totalBytes)/1024/1024/1024);
+  updateResStatusUI(); openModal('modal-edit-res');
+}
+function toggleResStatus(){currentEditResActive=!currentEditResActive;updateResStatusUI()}
+function updateResStatusUI(){
+  const btn=document.getElementById('er-status-btn'),lbl=document.getElementById('er-status-label');
+  btn.className='btn btn-sm '+(currentEditResActive?'bg-green':'bg-red');
+  btn.innerHTML=currentEditResActive?'<span class="dot dg pulse"></span> فعال':'<span class="dot dr"></span> غیرفعال';
+  lbl.textContent=currentEditResActive?'دسترسی دارد':'دسترسی ندارد';
+  lbl.style.color=currentEditResActive?'var(--green-t)':'var(--red-t)';
+}
+async function saveEditReseller(){
+  const id=document.getElementById('er-id').value,name=document.getElementById('er-name').value.trim(),pw=document.getElementById('er-pw').value.trim(),gb=document.getElementById('er-gb').value;
+  if(!name||!gb){toast('نام و حجم رو پر کن','err');return}
+  const body={name,limit_gb:parseFloat(gb),active:currentEditResActive};
+  if(pw)body.password=pw;
+  try{const r=await authF('/api/resellers/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error();closeModal('modal-edit-res');toast('ویرایش شد ✓','ok');loadResellers()}catch(e){toast('خطا','err')}
+}
 </script>
 </body></html>"""
 
@@ -2408,7 +2177,7 @@ function renderLock(name,errMsg=''){{
         <div class="lock-footer"><i class="ti ti-shield-check"></i> اتصال شما رمزنگاری‌شده است</div>
       </div>
     </div>
-  `;
+    `;
   const inp=document.getElementById('lock-pw');
   inp.addEventListener('keydown',e=>{{if(e.key==='Enter')submitLock()}});
 }}
