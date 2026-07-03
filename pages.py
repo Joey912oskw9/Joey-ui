@@ -1815,6 +1815,19 @@ document.addEventListener('DOMContentLoaded',async()=>{
     if(document.getElementById('pg-logs').classList.contains('on'))loadActivity();
   },5000);
 });
+async function loadResellers(){
+  const d=await(await fetch('/api/resellers')).json();
+  let h='<table><tr><th>نام</th><th>حجم</th><th>مصرف</th><th>وضعیت</th><th></th></tr>';
+  (d.resellers||[]).forEach(r=>{h+=`<tr><td>${r.name}</td><td>${r.total_fmt}</td><td>${r.allocated_fmt}</td><td>${r.active?'<span class="dot dg"></span>':'<span class="dot dr"></span>'}</td><td><button class="btn btn-sm btn-d" onclick="deleteReseller(\'${r.id}\')">حذف</button></td></tr>`});
+  document.getElementById('res-list').innerHTML=h+'</table>';
+  document.getElementById('res-nb').textContent=(d.resellers||[]).length;
+}
+async function createReseller(){
+  await fetch('/api/resellers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('r-name').value,password:document.getElementById('r-pw').value,limit_gb:document.getElementById('r-gb').value})});
+  closeModal('modal-res'); loadResellers();
+}
+async function deleteReseller(id){if(!confirm('حذف?'))return;await fetch('/api/resellers/'+id,{method:'DELETE'});loadResellers();}
+async function saveGlobalIPs(){await fetch('/api/settings/global-ips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ips:document.getElementById('g-ips').value.split(',').filter(x=>x.trim()),port:document.getElementById('g-port').value})});toast('ذخیره شد','ok');}
 </script>
 </body></html>"""
 
@@ -2255,18 +2268,5 @@ async function init(){{
 }}
 
 init();
-async function loadResellers(){
-  const d=await(await fetch('/api/resellers')).json();
-  let h='<table><tr><th>نام</th><th>حجم</th><th>مصرف</th><th>وضعیت</th><th></th></tr>';
-  (d.resellers||[]).forEach(r=>{h+=`<tr><td>${r.name}</td><td>${r.total_fmt}</td><td>${r.allocated_fmt}</td><td>${r.active?'<span class="dot dg"></span>':'<span class="dot dr"></span>'}</td><td><button class="btn btn-sm btn-d" onclick="deleteReseller(\'${r.id}\')">حذف</button></td></tr>`});
-  document.getElementById('res-list').innerHTML=h+'</table>';
-  document.getElementById('res-nb').textContent=(d.resellers||[]).length;
-}
-async function createReseller(){
-  await fetch('/api/resellers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('r-name').value,password:document.getElementById('r-pw').value,limit_gb:document.getElementById('r-gb').value})});
-  closeModal('modal-res'); loadResellers();
-}
-async function deleteReseller(id){if(!confirm('حذف?'))return;await fetch('/api/resellers/'+id,{method:'DELETE'});loadResellers();}
-async function saveGlobalIPs(){await fetch('/api/settings/global-ips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ips:document.getElementById('g-ips').value.split(',').filter(x=>x.trim()),port:document.getElementById('g-port').value})});toast('ذخیره شد','ok');}
 </script>
 </body></html>"""
