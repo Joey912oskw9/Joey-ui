@@ -57,7 +57,7 @@ input:focus+.ic{color:var(--accent)}
 <div class="wrap">
   <div class="card">
     <div class="brand">
-      <div class="brand-img"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="VaslZone"></div>
+      <div class="brand-img"><img src="https://imgur.com/a/7iaGndP" alt="VaslZone"></div>
       <div><div class="brand-name">vaslzone</div><div class="brand-sub">VaslZone Gateway · v9.3</div></div>
     </div>
     <h1>ورود به پنل</h1>
@@ -778,7 +778,7 @@ a{color:inherit;text-decoration:none}
 </div>
 <div class="mob-top">
   <div class="ml">
-    <div class="mob-logo"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="cb"></div>
+    <div class="mob-logo"><img src="https://imgur.com/a/7iaGndP" alt="cb"></div>
     <span class="mob-title">VaslZone Gateway</span>
   </div>
   <div class="mob-right">
@@ -790,7 +790,7 @@ a{color:inherit;text-decoration:none}
 <aside class="sidebar" id="sb">
   <button class="sb-close" id="close-sb"><i class="ti ti-x"></i></button>
   <div class="logo">
-    <div class="logo-img"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="cb"></div>
+    <div class="logo-img"><img src="https://imgur.com/a/7iaGndP" alt="cb"></div>
     <div><div class="logo-name">vaslzone</div><div class="logo-sub">VaslZone Gateway · v9.3</div></div>
   </div>
   <div class="nav-wrap">
@@ -1516,12 +1516,14 @@ async function createSub(){
   const pw=document.getElementById('ns-pw').value;
   try{
     const r=await authF('/api/subs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc,password:pw})});
+    const d=await r.json();
     if(!r.ok)throw new Error('failed');
+    navigator.clipboard.writeText(d.public_url).then(()=>toast('گروه ساخته شد! لینک مرورگر کپی شد ✓','ok'));
     ['ns-name','ns-desc','ns-pw'].forEach(id=>document.getElementById(id).value='');
     closeModal('modal-create-sub');
-    toast('گروه ساخته شد ✓','ok');loadSubs();
+    loadSubs();
   }catch(e){toast('خطا در ساخت گروه','err')}
-}
+
 async function deleteSub(sub_id){
   if(!confirm('حذف این گروه؟ کانفیگ‌ها حذف نمی‌شوند.'))return;
   try{const r=await authF('/api/subs/'+sub_id,{method:'DELETE'});if(!r.ok)throw new Error();toast('گروه حذف شد ✓','ok');loadSubs();loadLinks();}catch(e){toast('خطا','err')}
@@ -2067,7 +2069,7 @@ html,body{{min-height:100%;background:var(--bg);font-family:var(--serif);color:v
 <div class="wrap">
   <div class="top">
     <div class="brand">
-      <div class="brand-img"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="cb"></div>
+      <div class="brand-img"><img src="https://imgur.com/a/7iaGndP" alt="cb"></div>
       <div><div class="brand-name">vaslzone</div><div class="brand-sub">VaslZone Gateway · v9.3</div></div>
     </div>
     <div class="top-actions">
