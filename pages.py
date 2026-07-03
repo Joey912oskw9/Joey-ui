@@ -747,13 +747,6 @@ a{color:inherit;text-decoration:none}
 </div>
 <div class="modal-bg" id="modal-edit-link">
   <div class="modal">
-  <div class="modal-bg" id="modal-res">
-  <div class="modal"><button class="modal-close" onclick="closeModal('modal-res')"><i class="ti ti-x"></i></button>
-  <div class="modal-title"><i class="ti ti-user-plus"></i> نماینده جدید</div>
-  <input class="fi" id="r-name" placeholder="نام" style="width:100%;margin-bottom:10px">
-  <input class="fi" id="r-pw" placeholder="رمز" style="width:100%;margin-bottom:10px">
-  <input class="fi" id="r-gb" type="number" placeholder="حجم (GB)" style="width:100%;margin-bottom:15px">
-  <button class="btn btn-p" onclick="createReseller()">ذخیره</button></div></div>
     <button class="modal-close" onclick="closeModal('modal-edit-link')"><i class="ti ti-x"></i></button>
     <div class="modal-title"><i class="ti ti-edit"></i> ویرایش کانفیگ</div>
     <input type="hidden" id="el-uuid">
@@ -768,6 +761,18 @@ a{color:inherit;text-decoration:none}
     <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-o" onclick="closeModal('modal-edit-link')">انصراف</button>
       <button class="btn btn-p" onclick="saveEditLink()"><i class="ti ti-check"></i> ذخیره تغییرات</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-res">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-res')"><i class="ti ti-x"></i></button>
+    <div class="modal-title"><i class="ti ti-user-plus"></i> نماینده جدید</div>
+    <div class="fg" style="margin-bottom:10px"><label>نام</label><input class="fi" id="r-name" style="width:100%"></div>
+    <div class="fg" style="margin-bottom:10px"><label>رمز</label><input class="fi" id="r-pw" type="password" style="width:100%"></div>
+    <div class="fg" style="margin-bottom:15px"><label>حجم (GB)</label><input class="fi" id="r-gb" type="number" style="width:100%"></div>
+    <button class="btn btn-p" onclick="createReseller()"><i class="ti ti-user-plus"></i> ذخیره</button>
     </div>
   </div>
 </div>
@@ -1402,14 +1407,11 @@ async function createLink(){
   const body={label,limit_value:val||0,limit_unit:unit,expires_days:exp||0,note,sub_id,protocol,ips:addr,port,is_personal};
   const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{
-    let r;
-    if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);}
-    else{r=await authF('/api/links',opts);}
-    if(!r.ok)throw new Error('failed');
-    toast(count>1?count+' کانفیگ ساخته شد ✓':'کانفیگ ساخته شد ✓','ok');
+    let r, d;
+    if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);d=await r.json();if(d.vless_bulk)navigator.clipboard.writeText(d.vless_bulk).then(()=>toast(count+' کانفیگ ساخته شد! لینک‌ها کپی شد ✓','ok'));else toast(count+' کانفیگ ساخته شد ✓','ok');}
+    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link).then(()=>toast('کانفیگ ساخته شد! لینک کپی شد ✓','ok'));else toast('کانفیگ ساخته شد ✓','ok');}
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('nl-count').value=1;
-    document.getElementById('nl-personal').checked=false;
+    document.getElementById('nl-count').value=1;document.getElementById('nl-personal').checked=false;
     loadLinks();
   }catch(e){toast('خطا در ساخت','err')}
 }
