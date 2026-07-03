@@ -397,7 +397,6 @@ async def list_subs(_=Depends(require_auth)):
             "links_count": len(link_ids), "active_count": active_count,
             "total_used_bytes": total_used, "total_used_fmt": fmt_bytes(total_used),
             "public_url": f"https://{host}/p/{s['uuid_key']}",
-            "login_link": f"https://{host}/r/{r.get('login_token', '')}"
             "sub_url": f"https://{host}/sub-group/{s['uuid_key']}"})
     result.sort(key=lambda x: x["created_at"], reverse=True)
     return {"subs": result}
@@ -729,22 +728,20 @@ async def delete_link(uid: str, request: Request):
     asyncio.create_task(save_state())
     log_activity("link", f"کانفیگ {uid[:8]}... حذف شد", "err")
     return {"ok": True, "deleted": uid}
-    
-    @app.get("/r/{login_token}")
-async def reseller_token_login(login_token: str):
+
+# ── Reset Reseller Token ──────────────────────────────────────────────────────
+@app.post("/api/resellers/{rid}/reset-token")
+async def reset_reseller_token(rid: str, _=Depends(require_auth)):
     async with RESELLERS_LOCK:
-        for rid, res in RESELLERS.items():
-            if res.get("login_token") == login_token and res.get("active", True):
-                token = await create_session("reseller", rid)
-                log_activity("auth", f"ورود {res['name']} با لینک اختصاصی", "ok")
-                resp = RedirectResponse(url="/dashboard")
-                resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
-                return resp
-    return HTMLResponse("<h2 style='padding:40px;font-family:sans-serif'>لینک نامعتبر است</h2>", status_code=404)
+        if rid not in RESELLERS: raise HTTPException(404, "not found")
+        RESELLERS[rid]["login_token"] = secrets.token_urlsafe(16)
+    asyncio.create_task(save_state())
+    return {"ok": True, "login_token": RESELLERS[rid]["login_token"]}
 
 # ── Reseller Management (Admin Only) ──────────────────────────────────────────
 @app.get("/api/resellers")
 async def list_resellers(_=Depends(require_auth)):
+    host = get_host()
     async with RESELLERS_LOCK: snap_r = dict(RESELLERS)
     async with LINKS_LOCK: snap_l = dict(LINKS)
     result = []
@@ -756,11 +753,11 @@ async def list_resellers(_=Depends(require_auth)):
             "id": rid, "name": r["name"], "active": r.get("active", True),
             "total_bytes": r.get("total_bytes", 0), "total_fmt": fmt_bytes(r.get("total_bytes", 0)),
             "allocated_bytes": allocated, "allocated_fmt": fmt_bytes(allocated),
-            "login_link": f"https://{host}/r/{r.get('login_token', '')}"
             "traffic_used": traffic, "traffic_fmt": fmt_bytes(traffic),
             "remaining_bytes": max(0, r.get("total_bytes", 0) - allocated),
             "remaining_fmt": fmt_bytes(max(0, r.get("total_bytes", 0) - allocated)),
-            "created_at": r.get("created_at"), "links_count": links_cnt
+            "created_at": r.get("created_at"), "links_count": links_cnt,
+            "login_link": f"https://{host}/r/{r.get('login_token', '')}"
         })
     return {"resellers": result}
 
@@ -773,16 +770,14 @@ async def create_reseller(request: Request, _=Depends(require_auth)):
     if not name or not pw: raise HTTPException(400, "نام و رمز عبور الزامی است")
     if limit_gb <= 0: raise HTTPException(400, "حجم باید بیشتر از ۰ باشد")
     rid = secrets.token_hex(8)
-    login_token = secrets.token_urlsafe(16)
     async with RESELLERS_LOCK:
-RESELLERS[rid] = {
-    "name": name, 
-    "password_hash": hash_password(pw),
-    "total_bytes": parse_size_to_bytes(limit_gb, "GB"),
-    "active": True, 
-    "login_token": secrets.token_urlsafe(16),  # ← اینجا
-    "created_at": datetime.now().isoformat()
-}
+        RESELLERS[rid] = {
+            "name": name, "password_hash": hash_password(pw),
+            "total_bytes": parse_size_to_bytes(limit_gb, "GB"),
+            "active": True, 
+            "login_token": secrets.token_urlsafe(16),
+            "created_at": datetime.now().isoformat()
+        }
     asyncio.create_task(save_state())
     log_activity("system", f"نماینده «{name}» با {limit_gb}GB ساخته شد", "ok")
     return {"ok": True, "id": rid, "name": name, "limit_gb": limit_gb}
@@ -791,16 +786,19 @@ RESELLERS[rid] = {
 async def update_reseller(rid: str, request: Request, _=Depends(require_auth)):
     body = await request.json()
     async with RESELLERS_LOCK:
-        if rid not in RESELLERS: raise HTTPException(404, "not found")
+        if rid not in RESELLERS: raise HTTPException(404, "نماینده یافت نشد")
         r = RESELLERS[rid]
         if "name" in body and str(body["name"]).strip():
             r["name"] = str(body["name"]).strip()
         if "active" in body:
             r["active"] = bool(body["active"])
-        if "limit_gb" in body and float(body["limit_gb"]) > 0:
+            log_activity("system", f"نماینده «{r['name']}» {'فعال' if r['active'] else 'غیرفعال'} شد", "info")
+        if "limit_gb" in body:
             r["total_bytes"] = parse_size_to_bytes(float(body["limit_gb"]), "GB")
+            log_activity("system", f"حجم نماینده «{r['name']}» به {body['limit_gb']}GB تغییر کرد", "info")
         if "password" in body and str(body["password"]).strip():
             r["password_hash"] = hash_password(str(body["password"]).strip())
+            log_activity("system", f"رمز نماینده «{r['name']}» تغییر کرد", "info")
     asyncio.create_task(save_state())
     return {"ok": True}
 
@@ -819,6 +817,19 @@ async def reseller_links(rid: str, _=Depends(require_auth)):
     async with LINKS_LOCK:
         result = [{"uuid": uid, **d} for uid, d in LINKS.items() if d.get("creator_id") == rid]
     return {"links": result}
+
+# ── Reseller Token Login ──────────────────────────────────────────────────────
+@app.get("/r/{login_token}")
+async def reseller_token_login(login_token: str):
+    async with RESELLERS_LOCK:
+        for rid, res in RESELLERS.items():
+            if res.get("login_token") == login_token and res.get("active", True):
+                token = await create_session("reseller", rid)
+                log_activity("auth", f"ورود {res['name']} با لینک اختصاصی", "ok")
+                resp = RedirectResponse(url="/dashboard")
+                resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
+                return resp
+    return HTMLResponse("<h2 style='padding:40px;font-family:sans-serif'>لینک نامعتبر است</h2>", status_code=404)
 
 # ── VLESS Relay ───────────────────────────────────────────────────────────────
 from relay_vless import RELAY_BUF, parse_vless_header, check_and_use, relay_ws_to_tcp, relay_tcp_to_ws, websocket_tunnel
@@ -903,14 +914,6 @@ async def dashboard(request: Request):
     if not s or s["role"] != "admin": return RedirectResponse(url="/login")
     await ensure_default_link()
     return HTMLResponse(content=DASHBOARD_HTML)
-
-@app.post("/api/resellers/{rid}/reset-token")
-async def reset_reseller_token(rid: str, _=Depends(require_auth)):
-    async with RESELLERS_LOCK:
-        if rid not in RESELLERS: raise HTTPException(404, "not found")
-        RESELLERS[rid]["login_token"] = secrets.token_urlsafe(16)
-    asyncio.create_task(save_state())
-    return {"ok": True, "login_token": RESELLERS[rid]["login_token"]}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=CONFIG["port"], log_level="info", workers=1)
