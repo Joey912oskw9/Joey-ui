@@ -57,7 +57,7 @@ input:focus+.ic{color:var(--accent)}
 <div class="wrap">
   <div class="card">
     <div class="brand">
-      <div class="brand-img"><img src="https://imgur.com/a/7iaGndP" alt="VaslZone"></div>
+      <div class="brand-img"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="VaslZone"></div>
       <div><div class="brand-name">vaslzone</div><div class="brand-sub">VaslZone Gateway · v9.3</div></div>
     </div>
     <h1>ورود به پنل</h1>
@@ -778,7 +778,7 @@ a{color:inherit;text-decoration:none}
 </div>
 <div class="mob-top">
   <div class="ml">
-    <div class="mob-logo"><img src="https://imgur.com/a/7iaGndP" alt="cb"></div>
+    <div class="mob-logo"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="cb"></div>
     <span class="mob-title">VaslZone Gateway</span>
   </div>
   <div class="mob-right">
@@ -790,7 +790,7 @@ a{color:inherit;text-decoration:none}
 <aside class="sidebar" id="sb">
   <button class="sb-close" id="close-sb"><i class="ti ti-x"></i></button>
   <div class="logo">
-    <div class="logo-img"><img src="https://imgur.com/a/7iaGndP" alt="cb"></div>
+    <div class="logo-img"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="cb"></div>
     <div><div class="logo-name">vaslzone</div><div class="logo-sub">VaslZone Gateway · v9.3</div></div>
   </div>
   <div class="nav-wrap">
@@ -2069,7 +2069,7 @@ html,body{{min-height:100%;background:var(--bg);font-family:var(--serif);color:v
 <div class="wrap">
   <div class="top">
     <div class="brand">
-      <div class="brand-img"><img src="https://imgur.com/a/7iaGndP" alt="cb"></div>
+      <div class="brand-img"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="cb"></div>
       <div><div class="brand-name">vaslzone</div><div class="brand-sub">VaslZone Gateway · v9.3</div></div>
     </div>
     <div class="top-actions">
