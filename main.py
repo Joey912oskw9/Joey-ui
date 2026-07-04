@@ -327,7 +327,6 @@ async def subscription_single(uuid: str, request: Request):
     
     ua = request.headers.get("user-agent", "").lower()
     if any(b in ua for b in ["mozilla", "chrome", "safari", "firefox", "edge", "opera"]):
-        from public_page import get_single_sub_page_html
         return HTMLResponse(content=get_single_sub_page_html(uuid))
     
     host = get_host()
@@ -363,7 +362,8 @@ async def sub_group_subscription(uuid_key: str, request: Request):  # ← reques
     # تشخیص مرورگر
     ua = request.headers.get("user-agent", "").lower()
     if any(b in ua for b in ["mozilla", "chrome", "safari", "firefox", "edge", "opera"]):
-        from public_page import get_public_page_html, get_single_sub_page_html
+        from public_page import get_public_page_html
+        from public_page import get_single_sub_page_html
         return HTMLResponse(content=get_public_page_html(uuid_key))
     
     # ادامه کد قبلی برای کلاینت v2ray
