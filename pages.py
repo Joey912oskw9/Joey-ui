@@ -1434,7 +1434,7 @@ async function createLink(){
   try{
     let r, d;
     if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);d=await r.json();if(d.vless_bulk)navigator.clipboard.writeText(d.vless_bulk).then(()=>toast(count+' کانفیگ ساخته شد! لینک‌ها کپی شد ✓','ok'));else toast(count+' کانفیگ ساخته شد ✓','ok');}
-    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link).then(()=>toast('کانفیگ ساخته شد! لینک کپی شد ✓','ok'));else toast('کانفیگ ساخته شد ✓','ok');}
+    else{r=await authF('/api/links',opts);d=await r.json();if(d.sub_url)navigator.clipboard.writeText(d.sub_url).then(()=>toast('ساخته شد! لینک ساب کپی شد','ok'))
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nl-count').value=1;document.getElementById('nl-personal').checked=false;
     loadLinks();
