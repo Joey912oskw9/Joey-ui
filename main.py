@@ -861,7 +861,7 @@ async def http_proxy(target_url: str, request: Request):
 # ── Public Sub Page ───────────────────────────────────────────────────────────
 @app.get("/p/{uuid_key}", response_class=HTMLResponse)
 async def public_sub_page(uuid_key: str, request: Request):
-    from public_page import get_public_page_html
+    from public_page.py import get_public_page_html
     async with SUBS_LOCK:
         sub = next(({"sub_id": sid, **s} for sid, s in SUBS.items() if s.get("uuid_key") == uuid_key), None)
         if not sub: return HTMLResponse("<h2 style='font-family:sans-serif;padding:40px'>گروه پیدا نشد</h2>", status_code=404)
