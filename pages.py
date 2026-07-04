@@ -112,10 +112,10 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 :root{
   --bg:#060f1d;--bg2:#0a1628;--bg3:#0e1e35;
   --card:#0d1b2e;--card-b:rgba(239,68,68,0.13);--card-bh:rgba(239,68,68,0.28);
-  --accent:#EF4444;--accent2:#F59E0B;--accent-d:rgba(239,68,68,0.12);
+  --accent:#EF4444;--accent2:#D97706;--accent-d:rgba(239,68,68,0.12);
   --green:#10B981;--green-bg:rgba(16,185,129,0.1);--green-t:#34D399;
   --red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#F87171;
-  --amber:#F59E0B;--amber-bg:rgba(245,158,11,0.1);--amber-t:#FCD34D;
+  --amber:#D97706;--amber-bg:rgba(245,158,11,0.1);--amber-t:#FCD34D;
   --purple:#8B5CF6;--purple-bg:rgba(139,92,246,0.1);
   --t1:#E8F4FF;--t2:#7BAED4;--t3:#3D6B8E;
   --sidebar-w:248px;--radius:16px;
@@ -1434,7 +1434,7 @@ async function createLink(){
   try{
     let r, d;
     if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);d=await r.json();if(d.vless_bulk)navigator.clipboard.writeText(d.vless_bulk).then(()=>toast(count+' کانفیگ ساخته شد! لینک‌ها کپی شد ✓','ok'));else toast(count+' کانفیگ ساخته شد ✓','ok');}
-    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link)
+    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link).then(()=>toast('کانفیگ ساخته شد! لینک کپی شد ✓','ok'));
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nl-count').value=1;document.getElementById('nl-personal').checked=false;
     loadLinks();
@@ -1750,7 +1750,7 @@ function checkPwStrength(val){
   reqNum.classList.toggle('met',hasNum);
   reqCase.classList.toggle('met',hasCase);
   let score=0;if(hasLen)score++;if(hasNum)score++;if(hasCase)score++;if(hasLong)score++;
-  const colors=['#EF4444','#F59E0B','#EF4444','#10B981'],labels=['خیلی ضعیف','ضعیف','متوسط','قوی'];
+  const colors=['#EF4444','#D97706','#EF4444','#10B981'],labels=['خیلی ضعیف','ضعیف','متوسط','قوی'];
   segs.forEach((s,i)=>{s.style.background=i<score?colors[Math.max(0,score-1)]:'rgba(100,116,139,.2)'});
   if(val.length===0){label.innerHTML='<i class="ti ti-shield"></i> قدرت رمز';return}
   label.innerHTML=`<i class="ti ti-shield-check" style="color:${colors[Math.max(0,score-1)]}"></i> ${labels[Math.max(0,score-1)]}`;
@@ -1795,7 +1795,7 @@ function initCharts(){
     type:'line',
     data:{labels:[],datasets:[
       {label:'مصرف',data:[],borderColor:'#EF4444',backgroundColor:gradFill3,fill:true,tension:.45,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fff',pointHoverBorderColor:'#EF4444',pointHoverBorderWidth:3,borderWidth:3,order:2},
-      {label:'میانگین',data:[],borderColor:'#F59E0B',borderDash:[6,5],borderWidth:1.6,pointRadius:0,fill:false,tension:0,order:1}
+      {label:'میانگین',data:[],borderColor:'#D97706',borderDash:[6,5],borderWidth:1.6,pointRadius:0,fill:false,tension:0,order:1}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
