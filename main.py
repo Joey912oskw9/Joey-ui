@@ -17,7 +17,6 @@ import uvicorn
 import httpx
 import logging
 from supabase import create_client, Client
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("VaslZone-Gateway")
 IRAN_TZ = ZoneInfo("Asia/Tehran")
@@ -42,6 +41,17 @@ app.add_middleware(
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 DATA_FILE = DATA_DIR / "rvg_state.json"
 SAVE_LOCK = asyncio.Lock()
+supabase: Client = None
+
+async def init_supabase():
+    global supabase
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_KEY")
+    if url and key:
+        supabase = create_client(url, key)
+        logger.info("Supabase connected")
+    else:
+        logger.warning("Supabase not configured, using file storage")
 
 async def load_state():
     global LINKS, AUTH, SUBS, GLOBAL_SETTINGS, RESELLERS
@@ -168,6 +178,7 @@ async def startup():
     limits = httpx.Limits(max_connections=500, max_keepalive_connections=100)
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
+    await init_supabase()
     await load_state()
     log_activity("system", "سرور راه‌اندازی شد", "ok")
     logger.info(f"VaslZone Gateway started on port {CONFIG['port']}")
