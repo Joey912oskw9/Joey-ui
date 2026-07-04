@@ -38,167 +38,47 @@ app.add_middleware(
 )
 
 # ── Persistence ───────────────────────────────────────────────────────────────
-GITHUB_API = "https://api.github.com"
-
-async def gh_get():
-    headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN','')}", "Accept": "application/vnd.github.v3+json"}
-    repo = os.environ.get("GITHUB_REPO","")
-    fname = os.environ.get("GITHUB_FILE","state.json")
-    url = f"{GITHUB_API}/repos/{repo}/contents/{fname}"
-    try:
-        r = await http_client.get(url, headers=headers)
-        if r.status_code == 200:
-            import base64
-            content = base64.b64decode(r.json()["content"]).decode("utf-8","ignore")
-            return json.loads(content)
-    except Exception as e:
-        logger.warning(f"GH get fail: {e}")
-    return None
-
-async def gh_put(data: str):
-    headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN','')}", "Accept": "application/vnd.github.v3+json"}
-    repo = os.environ.get("GITHUB_REPO","")
-    fname = os.environ.get("GITHUB_FILE","state.json")
-    url = f"{GITHUB_API}/repos/{repo}/contents/{fname}"
-    try:
-        current = await http_client.get(url, headers=headers)
-        sha = current.json().get("sha") if current.status_code==200 else None
-        import base64
-        payload = {"message":"auto-save state","content": base64.b64encode(data.encode()).decode()}
-        if sha: payload["sha"] = sha
-        r = await http_client.put(url, headers=headers, json=payload)
-        return r.status_code in [200,201]
-    except Exception as e:
-        logger.warning(f"GH put fail: {e}")
-        return False
-
-async def gh_save(data_dict):
-    try:
-        token = os.environ.get("GITHUB_TOKEN", "")
-        repo = os.environ.get("GITHUB_REPO", "")
-        filename = os.environ.get("GITHUB_FILE", "state.json")
-        
-        if not token or not repo:
-            logger.warning("GH: missing token or repo")
-            return False
-        
-        url = f"https://api.github.com/repos/{repo}/contents/{filename}"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "VaslZone"
-        }
-        
-        # get current SHA
-        sha = None
-        try:
-            r = await http_client.get(url, headers=headers, timeout=10.0)
-            if r.status_code == 200:
-                sha = r.json().get("sha")
-        except Exception:
-            pass
-        
-        import base64
-        content = base64.b64encode(json.dumps(data_dict, ensure_ascii=False, indent=2).encode()).decode()
-        payload = {"message": "auto-save", "content": content}
-        if sha:
-            payload["sha"] = sha
-        
-        r = await http_client.put(url, headers=headers, json=payload, timeout=10.0)
-        if r.status_code in [200, 201]:
-            logger.info("GH: state saved ✓")
-            return True
-        else:
-            logger.warning(f"GH: save failed {r.status_code}: {r.text[:200]}")
-            return False
-    except Exception as e:
-        logger.warning(f"GH: save error: {e}")
-        return False
-
-async def gh_load():
-    try:
-        token = os.environ.get("GITHUB_TOKEN", "")
-        repo = os.environ.get("GITHUB_REPO", "")
-        filename = os.environ.get("GITHUB_FILE", "state.json")
-        
-        if not token or not repo:
-            return None
-        
-        url = f"https://api.github.com/repos/{repo}/contents/{filename}"
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "VaslZone"
-        }
-        
-        r = await http_client.get(url, headers=headers, timeout=10.0)
-        if r.status_code == 200:
-            import base64
-            content = base64.b64decode(r.json()["content"]).decode()
-            data = json.loads(content)
-            logger.info(f"GH: loaded state ✓ ({len(data.get('links',{}))} links)")
-            return data
-        elif r.status_code == 404:
-            logger.info("GH: no state yet, fresh start")
-            return None
-        else:
-            logger.warning(f"GH: load failed {r.status_code}")
-            return None
-    except Exception as e:
-        logger.warning(f"GH: load error: {e}")
-        return None
+DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
+DATA_FILE = DATA_DIR / "rvg_state.json"
+SAVE_LOCK = asyncio.Lock()
 
 async def load_state():
     global LINKS, AUTH, SUBS, GLOBAL_SETTINGS, RESELLERS
     try:
-        from pymongo import MongoClient
-        client = MongoClient(os.environ.get("MONGODB_URI"), serverSelectionTimeoutMS=5000)
-        db = client["vaslzone"]
-        doc = db.state.find_one({"_id": "main"})
-        if doc:
-            data = doc["data"]
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        if DATA_FILE.exists():
+            async with aiofiles.open(DATA_FILE, "r", encoding="utf-8") as f:
+                raw = await f.read()
+                data = json.loads(raw)
             LINKS.update(data.get("links", {}))
             SUBS.update(data.get("subs", {}))
             RESELLERS.update(data.get("resellers", {}))
-            if "global_settings" in data: GLOBAL_SETTINGS.update(data["global_settings"])
-            if "password_hash" in data: AUTH["password_hash"] = data["password_hash"]
+            if "global_settings" in data:
+                GLOBAL_SETTINGS.update(data["global_settings"])
+            if "password_hash" in data:
+                AUTH["password_hash"] = data["password_hash"]
+            logger.info(f"State loaded: {len(LINKS)} links, {len(SUBS)} subs, {len(RESELLERS)} resellers")
     except Exception as e:
-        logger.warning(f"load: {e}")
+        logger.warning(f"Could not load state: {e}")
 
 async def save_state():
-    try:
-        from pymongo import MongoClient
-        client = MongoClient(os.environ.get("MONGODB_URI"), serverSelectionTimeoutMS=5000)
-        db = client["vaslzone"]
-        data = {"links": dict(LINKS), "subs": dict(SUBS), "resellers": dict(RESELLERS),
-            "global_settings": dict(GLOBAL_SETTINGS), "password_hash": AUTH["password_hash"]}
-        db.state.replace_one({"_id": "main"}, {"_id": "main", "data": data}, upsert=True)
-    except Exception as e:
-        logger.warning(f"save: {e}")
-
-async def save_state():
-    try:
-        data = {
-            "links": dict(LINKS),
-            "subs": dict(SUBS),
-            "resellers": dict(RESELLERS),
-            "global_settings": dict(GLOBAL_SETTINGS),
-            "password_hash": AUTH["password_hash"],
-            "saved_at": datetime.now().isoformat(),
-        }
-        ok = await gh_save(data)
-        if ok:
-            return
-        # fallback: فایل محلی
-        async with SAVE_LOCK:
+    async with SAVE_LOCK:
+        try:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
+            data = {
+                "links": dict(LINKS),
+                "subs": dict(SUBS),
+                "resellers": dict(RESELLERS),
+                "global_settings": dict(GLOBAL_SETTINGS),
+                "password_hash": AUTH["password_hash"],
+                "saved_at": datetime.now().isoformat(),
+            }
             tmp = DATA_FILE.with_suffix(".tmp")
             async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(data, ensure_ascii=False, indent=2))
             tmp.replace(DATA_FILE)
-    except Exception as e:
-        logger.warning(f"save_state: {e}")
-
+        except Exception as e:
+            logger.warning(f"Could not save state: {e}")
 
 # ── In-memory state ───────────────────────────────────────────────────────────
 connections: dict = {}
