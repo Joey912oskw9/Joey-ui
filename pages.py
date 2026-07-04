@@ -1516,14 +1516,12 @@ async function createSub(){
   const pw=document.getElementById('ns-pw').value;
   try{
     const r=await authF('/api/subs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc,password:pw})});
-    const d=await r.json();
     if(!r.ok)throw new Error('failed');
-    navigator.clipboard.writeText(d.public_url).then(()=>toast('گروه ساخته شد! لینک مرورگر کپی شد ✓','ok'));
     ['ns-name','ns-desc','ns-pw'].forEach(id=>document.getElementById(id).value='');
     closeModal('modal-create-sub');
-    loadSubs();
+    toast('گروه ساخته شد ✓','ok');loadSubs();
   }catch(e){toast('خطا در ساخت گروه','err')}
-
+}
 async function deleteSub(sub_id){
   if(!confirm('حذف این گروه؟ کانفیگ‌ها حذف نمی‌شوند.'))return;
   try{const r=await authF('/api/subs/'+sub_id,{method:'DELETE'});if(!r.ok)throw new Error();toast('گروه حذف شد ✓','ok');loadSubs();loadLinks();}catch(e){toast('خطا','err')}
