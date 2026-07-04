@@ -151,31 +151,30 @@ async def gh_load():
 async def load_state():
     global LINKS, AUTH, SUBS, GLOBAL_SETTINGS, RESELLERS
     try:
-        data = await gh_load()
-        if data:
+        from pymongo import MongoClient
+        client = MongoClient(os.environ.get("MONGODB_URI"), serverSelectionTimeoutMS=5000)
+        db = client["vaslzone"]
+        doc = db.state.find_one({"_id": "main"})
+        if doc:
+            data = doc["data"]
             LINKS.update(data.get("links", {}))
             SUBS.update(data.get("subs", {}))
             RESELLERS.update(data.get("resellers", {}))
-            if "global_settings" in data:
-                GLOBAL_SETTINGS.update(data["global_settings"])
-            if "password_hash" in data:
-                AUTH["password_hash"] = data["password_hash"]
-            return
-        # fallback: فایل محلی (اگه قدیمی داری)
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        if DATA_FILE.exists():
-            async with aiofiles.open(DATA_FILE, "r", encoding="utf-8") as f:
-                raw = await f.read()
-                data = json.loads(raw)
-            LINKS.update(data.get("links", {}))
-            SUBS.update(data.get("subs", {}))
-            RESELLERS.update(data.get("resellers", {}))
-            if "global_settings" in data:
-                GLOBAL_SETTINGS.update(data["global_settings"])
-            if "password_hash" in data:
-                AUTH["password_hash"] = data["password_hash"]
+            if "global_settings" in data: GLOBAL_SETTINGS.update(data["global_settings"])
+            if "password_hash" in data: AUTH["password_hash"] = data["password_hash"]
     except Exception as e:
-        logger.warning(f"load_state: {e}")
+        logger.warning(f"load: {e}")
+
+async def save_state():
+    try:
+        from pymongo import MongoClient
+        client = MongoClient(os.environ.get("MONGODB_URI"), serverSelectionTimeoutMS=5000)
+        db = client["vaslzone"]
+        data = {"links": dict(LINKS), "subs": dict(SUBS), "resellers": dict(RESELLERS),
+            "global_settings": dict(GLOBAL_SETTINGS), "password_hash": AUTH["password_hash"]}
+        db.state.replace_one({"_id": "main"}, {"_id": "main", "data": data}, upsert=True)
+    except Exception as e:
+        logger.warning(f"save: {e}")
 
 async def save_state():
     try:
