@@ -1340,7 +1340,9 @@ async function loadLinks(){
     const {subs=[]}=await sr.json();
     allSubsList=subs;allLinksList=links;
     const nlSub=document.getElementById('nl-sub');
-    nlSub.innerHTML='<option value="">— بدون گروه —</option>'+subs.map(s=>`<option value="${esc(s.sub_id)}">${esc(s.name)}</option>`).join('');
+    const curSub=nlSub.value;
+nlSub.innerHTML='<option value="">— بدون گروه —</option>'+subs.map(s=>`<option value="${esc(s.sub_id)}">${esc(s.name)}</option>`).join('');
+if(curSub)nlSub.value=curSub;
     document.getElementById('links-nb').textContent=links.length;
     document.getElementById('links-pg-cnt').textContent=toFa(links.length)+' کانفیگ';
     document.getElementById('lsummary-badge').textContent=toFa(links.length);
