@@ -1403,61 +1403,19 @@ async function createLink(){
   const addr=document.getElementById('nl-ips').value.split(',').filter(x=>x.trim());
   const port=document.getElementById('nl-port').value;
   let count=parseInt(document.getElementById('nl-count').value)||1;
-  if(count<1)count=1;
+if(count<1)count=1;
   const is_personal=document.getElementById('nl-personal').checked;
   const body={label,limit_value:val||0,limit_unit:unit,expires_days:exp||0,note,sub_id,protocol,ips:addr,port,is_personal};
   const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{
-    let r,d;
-    if(count>1){
-      body.count=count;
-      r=await authF('/api/links/bulk',opts);
-      d=await r.json();
-      if(d.sub_bulk)navigator.clipboard.writeText(d.sub_bulk).then(()=>toast(count+' کانفیگ ساخته شد! لینک ساب‌ها کپی شد ✓','ok'));
-      else toast(count+' کانفیگ ساخته شد ✓','ok');
-    }else{
-      r=await authF('/api/links',opts);
-      d=await r.json();
-      if(d.sub_url)navigator.clipboard.writeText(d.sub_url).then(()=>toast('کانفیگ ساخته شد! لینک ساب کپی شد ✓','ok'));
-      else if(d.sub_url)navigator.clipboard.writeText(d.sub_url).then(()=>toast('کانفیگ ساخته شد ✓','ok'));
-    }
+    let r, d;
+    if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);d=await r.json();if(d.vless_bulk)navigator.clipboard.writeText(d.vless_bulk).then(()=>toast(count+' کانفیگ ساخته شد! لینک‌ها کپی شد ✓','ok'));else toast(count+' کانفیگ ساخته شد ✓','ok');}
+    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link).then(()=>toast('کانفیگ ساخته شد! لینک کپی شد ✓','ok'));else toast('کانفیگ ساخته شد ✓','ok');}
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('nl-count').value=1;
-    document.getElementById('nl-personal').checked=false;
+    document.getElementById('nl-count').value=1;document.getElementById('nl-personal').checked=false;
     loadLinks();
   }catch(e){toast('خطا در ساخت','err')}
 }
-@app.post("/api/links/bulk")
-async def create_links_bulk(request: Request):
-    s = await require_reseller_auth(request)
-    body = await request.json()
-    cnt = min(max(int(body.get("count", 1)), 1), 100)
-    lv = float(body.get("limit_value") or 0)
-    lb = 0 if lv <= 0 else parse_size_to_bytes(lv, body.get("limit_unit") or "GB")
-    if s["role"] == "reseller":
-        await check_reseller_capacity(s["user_id"], lb * cnt)
-    uids, host = [], get_host()
-    for i in range(cnt):
-        uid = generate_uuid()
-        async with LINKS_LOCK:
-            LINKS[uid] = {
-                "label": f"{(body.get('label') or 'Bulk').strip()[:40]}-{i+1}",
-                "limit_bytes": lb, "used_bytes": 0,
-                "created_at": datetime.now().isoformat(), "active": True,
-                "expires_at": (datetime.now() + timedelta(days=int(body.get('expires_days') or 0))).isoformat() if int(body.get('expires_days') or 0) > 0 else None,
-                "note": "", "is_default": False, "sub_id": body.get("sub_id"),
-                "protocol": body.get("protocol") or DEFAULT_PROTOCOL,
-                "ips": [], "port": int(body.get("port")) if body.get("port") else None,
-                "is_personal": True, "creator_id": s["user_id"]
-            }
-        uids.append(uid)
-    asyncio.create_task(save_state())
-    all_vless = []
-    for uid in uids:
-        all_vless.extend(generate_vless_links(LINKS[uid], uid, host))
-    sub_bulk = "\n".join([f"https://{host}/sub/{uid}" for uid in uids])
-    return {"ok": True, "count": cnt, "created_uids": uids,
-            "sub_bulk": sub_bulk, "vless_bulk": "\n".join(all_vless)}
 function openEditLink(uuid){
   const l=allLinksList.find(x=>x.uuid===uuid);
   if(!l)return;
