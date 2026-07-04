@@ -11,7 +11,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#060f1d;--card:rgba(10,22,40,0.9);--accent:#D97706;--text:#E8F4FF;--dim:#3D6B8E;--mid:#7BAED4;--border:rgba(239,68,68,0.2)}
+:root{--bg:#060f1d;--card:rgba(10,22,40,0.9);--accent:#EF4444;--text:#E8F4FF;--dim:#3D6B8E;--mid:#7BAED4;--border:rgba(239,68,68,0.2)}
 html,body{height:100%;overflow:hidden}
 body{font-family:'Vazirmatn',sans-serif;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
 .bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(239,68,68,0.1),transparent 70%),var(--bg);z-index:0}
@@ -57,7 +57,7 @@ input:focus+.ic{color:var(--accent)}
 <div class="wrap">
   <div class="card">
     <div class="brand">
-      <div class="brand-img"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="VaslZone"></div>
+      <div class="brand-img"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="VaslZone"></div>
       <div><div class="brand-name">vaslzone</div><div class="brand-sub">VaslZone Gateway · v9.3</div></div>
     </div>
     <h1>ورود به پنل</h1>
@@ -112,10 +112,10 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 :root{
   --bg:#060f1d;--bg2:#0a1628;--bg3:#0e1e35;
   --card:#0d1b2e;--card-b:rgba(239,68,68,0.13);--card-bh:rgba(239,68,68,0.28);
-  --accent:#D97706;--accent2:#60A5FA;--accent-d:rgba(239,68,68,0.12);
-  --green:#D97706;--green-bg:rgba(16,185,129,0.1);--green-t:#34D399;
-  --red:#D97706;--red-bg:rgba(239,68,68,0.1);--red-t:#F87171;
-  --amber:#D97706;--amber-bg:rgba(245,158,11,0.1);--amber-t:#FCD34D;
+  --accent:#EF4444;--accent2:#60A5FA;--accent-d:rgba(239,68,68,0.12);
+  --green:#10B981;--green-bg:rgba(16,185,129,0.1);--green-t:#34D399;
+  --red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#F87171;
+  --amber:#F59E0B;--amber-bg:rgba(245,158,11,0.1);--amber-t:#FCD34D;
   --purple:#8B5CF6;--purple-bg:rgba(139,92,246,0.1);
   --t1:#E8F4FF;--t2:#7BAED4;--t3:#3D6B8E;
   --sidebar-w:248px;--radius:16px;
@@ -766,31 +766,6 @@ a{color:inherit;text-decoration:none}
 </div>
 
 <div class="modal-bg" id="modal-res">
-<div class="modal-bg" id="modal-edit-res">
-  <div class="modal-v2" style="max-width:460px">
-    <div class="modal-v2-head">
-      <button class="modal-v2-close" onclick="closeModal('modal-edit-res')"><i class="ti ti-x"></i></button>
-      <div class="modal-v2-icon"><i class="ti ti-edit"></i></div>
-      <div class="modal-v2-title">ویرایش نماینده</div>
-      <div class="modal-v2-sub">تغییر نام، حجم، رمز و وضعیت</div>
-    </div>
-    <div class="modal-v2-body">
-      <input type="hidden" id="er-id">
-      <div class="modal-v2-field"><label>نام</label><input class="modal-v2-input" id="er-name"></div>
-      <div class="modal-v2-field"><label>رمز جدید (خالی = بدون تغییر)</label><input class="modal-v2-input" id="er-pw" type="password"></div>
-      <div class="modal-v2-field"><label>حجم (GB)</label><input class="modal-v2-input" id="er-gb" type="number"></div>
-      <div class="modal-v2-field">
-        <label>وضعیت</label>
-        <button class="btn btn-sm" id="er-status-btn" onclick="toggleResStatus()"></button>
-        <span id="er-status-label" style="font-size:11px;color:var(--t3);margin-right:8px"></span>
-      </div>
-      <div class="modal-v2-footer">
-        <button class="btn btn-o" onclick="closeModal('modal-edit-res')" style="flex:.6">انصراف</button>
-        <button class="btn btn-pur" onclick="saveEditReseller()"><i class="ti ti-check"></i> ذخیره</button>
-      </div>
-    </div>
-  </div>
-</div>
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-res')"><i class="ti ti-x"></i></button>
     <div class="modal-title"><i class="ti ti-user-plus"></i> نماینده جدید</div>
@@ -803,7 +778,7 @@ a{color:inherit;text-decoration:none}
 </div>
 <div class="mob-top">
   <div class="ml">
-    <div class="mob-logo"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="cb"></div>
+    <div class="mob-logo"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="cb"></div>
     <span class="mob-title">VaslZone Gateway</span>
   </div>
   <div class="mob-right">
@@ -815,7 +790,7 @@ a{color:inherit;text-decoration:none}
 <aside class="sidebar" id="sb">
   <button class="sb-close" id="close-sb"><i class="ti ti-x"></i></button>
   <div class="logo">
-    <div class="logo-img"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="cb"></div>
+    <div class="logo-img"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="cb"></div>
     <div><div class="logo-name">vaslzone</div><div class="logo-sub">VaslZone Gateway · v9.3</div></div>
   </div>
   <div class="nav-wrap">
@@ -1427,14 +1402,15 @@ async function createLink(){
   const protocol=document.getElementById('nl-proto').value||'vless-ws';
   const addr=document.getElementById('nl-ips').value.split(',').filter(x=>x.trim());
   const port=document.getElementById('nl-port').value;
-  const count=parseInt(document.getElementById('nl-count').value)||1;
+  let count=parseInt(document.getElementById('nl-count').value)||1;
+if(count<1)count=1;
   const is_personal=document.getElementById('nl-personal').checked;
   const body={label,limit_value:val||0,limit_unit:unit,expires_days:exp||0,note,sub_id,protocol,ips:addr,port,is_personal};
   const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{
     let r, d;
     if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);d=await r.json();if(d.vless_bulk)navigator.clipboard.writeText(d.vless_bulk).then(()=>toast(count+' کانفیگ ساخته شد! لینک‌ها کپی شد ✓','ok'));else toast(count+' کانفیگ ساخته شد ✓','ok');}
-    else{r=await authF('/api/links',opts);d=await r.json();if(d.sub_url)navigator.clipboard.writeText(d.sub_url).then(()=>toast('ساخته شد! لینک ساب کپی شد','ok'))
+    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link).then(()=>toast('کانفیگ ساخته شد! لینک کپی شد ✓','ok'));else toast('کانفیگ ساخته شد ✓','ok');}
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nl-count').value=1;document.getElementById('nl-personal').checked=false;
     loadLinks();
@@ -1521,7 +1497,8 @@ function renderSubsGrid(subs){
       </div>
       <div class="sub-card-bottom">
         <button class="btn btn-sm btn-g" onclick="openSubLinks('${esc(s.sub_id)}','${esc(s.name)}')"><i class="ti ti-link-plus"></i> کانفیگ‌ها</button>
-        <button class="btn btn-sm btn-o" onclick="navigator.clipboard.writeText('${esc(s.sub_url)}').then(()=>toast('لینک ساب کپی شد','ok'))"><i class="ti ti-rss"></i> ساب</button>
+<button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText('${r.login_link}').then(()=>toast('لینک اختصاصی نماینده کپی شد','ok'))" title="لینک اختصاصی"><i class="ti ti-copy"></i></button>
+        <button class="btn btn-sm btn-pur" onclick="copyAllSubLinks('${esc(s.sub_id)}')"><i class="ti ti-copy"></i> کپی همه ساب‌ها</button>
         <button class="btn btn-sm btn-g btn-icon" onclick="showQR('${esc(s.sub_url)}')" title="QR"><i class="ti ti-qrcode"></i></button>
         <button class="btn btn-sm btn-d btn-icon" onclick="deleteSub('${esc(s.sub_id)}')" title="حذف"><i class="ti ti-trash"></i></button>
       </div>
@@ -1539,12 +1516,14 @@ async function createSub(){
   const pw=document.getElementById('ns-pw').value;
   try{
     const r=await authF('/api/subs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc,password:pw})});
+    const d=await r.json();
     if(!r.ok)throw new Error('failed');
+    navigator.clipboard.writeText(d.public_url).then(()=>toast('گروه ساخته شد! لینک مرورگر کپی شد ✓','ok'));
     ['ns-name','ns-desc','ns-pw'].forEach(id=>document.getElementById(id).value='');
     closeModal('modal-create-sub');
-    toast('گروه ساخته شد ✓','ok');loadSubs();
+    loadSubs();
   }catch(e){toast('خطا در ساخت گروه','err')}
-}
+
 async function deleteSub(sub_id){
   if(!confirm('حذف این گروه؟ کانفیگ‌ها حذف نمی‌شوند.'))return;
   try{const r=await authF('/api/subs/'+sub_id,{method:'DELETE'});if(!r.ok)throw new Error();toast('گروه حذف شد ✓','ok');loadSubs();loadLinks();}catch(e){toast('خطا','err')}
@@ -1750,7 +1729,7 @@ function checkPwStrength(val){
   reqNum.classList.toggle('met',hasNum);
   reqCase.classList.toggle('met',hasCase);
   let score=0;if(hasLen)score++;if(hasNum)score++;if(hasCase)score++;if(hasLong)score++;
-  const colors=['#D97706','#D97706','#D97706','#D97706'],labels=['خیلی ضعیف','ضعیف','متوسط','قوی'];
+  const colors=['#EF4444','#F59E0B','#EF4444','#10B981'],labels=['خیلی ضعیف','ضعیف','متوسط','قوی'];
   segs.forEach((s,i)=>{s.style.background=i<score?colors[Math.max(0,score-1)]:'rgba(100,116,139,.2)'});
   if(val.length===0){label.innerHTML='<i class="ti ti-shield"></i> قدرت رمز';return}
   label.innerHTML=`<i class="ti ti-shield-check" style="color:${colors[Math.max(0,score-1)]}"></i> ${labels[Math.max(0,score-1)]}`;
@@ -1781,7 +1760,7 @@ function initCharts(){
     },
     elements:{line:{capBezierPoints:true}}
   };
-  const ds1={label:'MB',data:[],borderColor:'#D97706',backgroundColor:grad1,fill:true,tension:.42,pointRadius:0,pointHoverRadius:6,pointHoverBackgroundColor:'#D97706',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2.5};
+  const ds1={label:'MB',data:[],borderColor:'#EF4444',backgroundColor:grad1,fill:true,tension:.42,pointRadius:0,pointHoverRadius:6,pointHoverBackgroundColor:'#EF4444',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2.5};
   ch1=new Chart(document.getElementById('ch1'),{type:'line',data:{labels:[],datasets:[ds1]},options:opts});
 
   function makeGradientV2(ctx,c1,c2,c3){
@@ -1794,8 +1773,8 @@ function initCharts(){
   ch3=new Chart(document.getElementById('ch3'),{
     type:'line',
     data:{labels:[],datasets:[
-      {label:'مصرف',data:[],borderColor:'#D97706',backgroundColor:gradFill3,fill:true,tension:.45,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fff',pointHoverBorderColor:'#D97706',pointHoverBorderWidth:3,borderWidth:3,order:2},
-      {label:'میانگین',data:[],borderColor:'#D97706',borderDash:[6,5],borderWidth:1.6,pointRadius:0,fill:false,tension:0,order:1}
+      {label:'مصرف',data:[],borderColor:'#EF4444',backgroundColor:gradFill3,fill:true,tension:.45,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fff',pointHoverBorderColor:'#EF4444',pointHoverBorderWidth:3,borderWidth:3,order:2},
+      {label:'میانگین',data:[],borderColor:'#F59E0B',borderDash:[6,5],borderWidth:1.6,pointRadius:0,fill:false,tension:0,order:1}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
@@ -1820,7 +1799,7 @@ function initCharts(){
     type:'doughnut',
     data:{labels:['VLESS/WS','XHTTP Ultra','HTTP Proxy'],datasets:[{
       data:[55,35,10],
-      backgroundColor:['#D97706','#D97706','#8B5CF6'],
+      backgroundColor:['#EF4444','#10B981','#8B5CF6'],
       borderColor:getComputedStyle(document.documentElement).getPropertyValue('--card')||'#0d1b2e',
       borderWidth:4,hoverOffset:10,borderRadius:6,spacing:3
     }]},
@@ -1854,16 +1833,23 @@ document.addEventListener('DOMContentLoaded',async()=>{
   },5000);
 });
 async function loadResellers(){
+  const d=await(await fetch('/api/resellers')).json();
+  const el=document.getElementById('res-list');
+  document.getElementById('res-nb').textContent=(d.resellers||[]).length;
+  if(!d.resellers||!d.resellers.length){el.innerHTML='<div class="empty" style="padding:50px"><i class="ti ti-users"></i><p>هنوز نماینده‌ای نیست</p></div>';return}
+  el.innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--accent-d);color:var(--t2)"><th style="padding:12px 15px;text-align:right">نام</th><th style="padding:12px 15px;text-align:center">حجم</th><th style="padding:12px 15px;text-align:center">مصرف</th><th style="padding:12px 15px;text-align:center">باقی</th><th style="padding:12px 15px;text-align:center">وضعیت</th><th style="padding:12px 15px;text-align:center">لینک اختصاصی</th><th style="padding:12px 15px;text-align:left">عملیات</th></tr></thead><tbody>'+
+  d.resellers.map(r=>'<tr style="border-top:1px solid var(--card-b)"><td style="padding:14px 15px;font-weight:700">'+r.name+'</td><td style="padding:14px 15px;text-align:center">'+r.total_fmt+'</td><td style="padding:14px 15px;text-align:center">'+r.allocated_fmt+'</td><td style="padding:14px 15px;text-align:center;color:'+(r.remaining_bytes>0?'var(--green-t)':'var(--red-t)')+'">'+r.remaining_fmt+'</td><td style="padding:14px 15px;text-align:center"><span class="badge '+(r.active?'bg-green':'bg-red')+'"><span class="dot '+(r.active?'dg pulse':'dr')+'"></span> '+(r.active?'فعال':'غیرفعال')+'</span></td><td style="padding:14px 15px;text-align:center"><button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText(\''+r.login_link+'\').then(()=>toast(\'لینک اختصاصی کپی شد\',\'ok\'))" title="کپی لینک"><i class="ti ti-copy"></i></button> <button class="btn btn-sm btn-amber" onclick="resetResToken(\''+r.id+'\')" title="تغییر لینک"><i class="ti ti-refresh"></i></button></td><td style="padding:14px 15px;text-align:left"><button class="btn btn-sm btn-d" onclick="deleteReseller(\''+r.id+'\')"><i class="ti ti-trash"></i> حذف</button></td></tr>').join('')+
+  '</tbody></table></div>';
+}
+
+async function resetResToken(id){
+  if(!confirm('لینک اختصاصی این نماینده تغییر می‌کنه. مطمئنی؟'))return;
   try{
-    const d=await(await authF('/api/resellers')).json();
-    const el=document.getElementById('res-list');
-    document.getElementById('res-nb').textContent=(d.resellers||[]).length;
-    if(!d.resellers||!d.resellers.length){el.innerHTML='<div class="empty" style="padding:50px"><i class="ti ti-users"></i><p>هنوز نماینده‌ای نیست</p></div>';return}
-    const host=location.host;
-    el.innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--accent-d);color:var(--t2)"><th style="padding:12px 15px;text-align:right">نام</th><th style="padding:12px 15px;text-align:center">حجم کل</th><th style="padding:12px 15px;text-align:center">مصرف</th><th style="padding:12px 15px;text-align:center">باقی</th><th style="padding:12px 15px;text-align:center">کانفیگ</th><th style="padding:12px 15px;text-align:center">وضعیت</th><th style="padding:12px 15px;text-align:center">لینک</th><th style="padding:12px 15px;text-align:left">عملیات</th></tr></thead><tbody>'+
-    d.resellers.map(r=>'<tr style="border-top:1px solid var(--card-b)"><td style="padding:14px 15px;font-weight:700">'+esc(r.name)+'</td><td style="padding:14px 15px;text-align:center">'+esc(r.total_fmt)+'</td><td style="padding:14px 15px;text-align:center">'+esc(r.allocated_fmt)+'</td><td style="padding:14px 15px;text-align:center;color:'+(r.remaining_bytes>0?'var(--green-t)':'var(--red-t)')+'">'+esc(r.remaining_fmt)+'</td><td style="padding:14px 15px;text-align:center">'+toFa(r.links_count)+'</td><td style="padding:14px 15px;text-align:center"><span class="badge '+(r.active?'bg-green':'bg-red')+'"><span class="dot '+(r.active?'dg pulse':'dr')+'"></span> '+(r.active?'فعال':'غیرفعال')+'</span></td><td style="padding:14px 15px;text-align:center"><button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText(\''+host+'\').then(()=>toast(\'لینک کپی شد\',\'ok\'))"><i class="ti ti-copy"></i></button></td><td style="padding:14px 15px;text-align:left"><button class="btn btn-sm btn-g btn-icon" onclick="openEditRes(\''+r.id+'\',\''+esc(r.name)+'\',\''+r.total_bytes+'\',\''+r.active+'\')" title="ویرایش"><i class="ti ti-edit"></i></button><button class="btn btn-sm btn-d btn-icon" onclick="deleteReseller(\''+r.id+'\')" title="حذف"><i class="ti ti-trash"></i></button></td></tr>').join('')+
-    '</tbody></table></div>';
-  }catch(e){}
+    const r=await fetch('/api/resellers/'+id+'/reset-token',{method:'POST'});
+    if(!r.ok)throw new Error();
+    toast('لینک جدید ساخته شد ✓','ok');
+    loadResellers();
+  }catch(e){toast('خطا','err')}
 }
 async function createReseller(){
   await fetch('/api/resellers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('r-name').value,password:document.getElementById('r-pw').value,limit_gb:document.getElementById('r-gb').value})});
@@ -1871,30 +1857,16 @@ async function createReseller(){
 }
 async function deleteReseller(id){if(!confirm('حذف?'))return;await fetch('/api/resellers/'+id,{method:'DELETE'});loadResellers();}
 async function saveGlobalIPs(){await fetch('/api/settings/global-ips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ips:document.getElementById('g-ips').value.split(',').filter(x=>x.trim()),port:document.getElementById('g-port').value})});toast('ذخیره شد','ok');}
-// === نمایندگان کامل ===
-let currentEditResId=null,currentEditResActive=true;
-function openEditRes(id,name,totalBytes,active){
-  currentEditResId=id; currentEditResActive=active==='true';
-  document.getElementById('er-id').value=id;
-  document.getElementById('er-name').value=name;
-  document.getElementById('er-pw').value='';
-  document.getElementById('er-gb').value=Math.round(parseInt(totalBytes)/1024/1024/1024);
-  updateResStatusUI(); openModal('modal-edit-res');
-}
-function toggleResStatus(){currentEditResActive=!currentEditResActive;updateResStatusUI()}
-function updateResStatusUI(){
-  const btn=document.getElementById('er-status-btn'),lbl=document.getElementById('er-status-label');
-  btn.className='btn btn-sm '+(currentEditResActive?'bg-green':'bg-red');
-  btn.innerHTML=currentEditResActive?'<span class="dot dg pulse"></span> فعال':'<span class="dot dr"></span> غیرفعال';
-  lbl.textContent=currentEditResActive?'دسترسی دارد':'دسترسی ندارد';
-  lbl.style.color=currentEditResActive?'var(--green-t)':'var(--red-t)';
-}
-async function saveEditReseller(){
-  const id=document.getElementById('er-id').value,name=document.getElementById('er-name').value.trim(),pw=document.getElementById('er-pw').value.trim(),gb=document.getElementById('er-gb').value;
-  if(!name||!gb){toast('نام و حجم رو پر کن','err');return}
-  const body={name,limit_gb:parseFloat(gb),active:currentEditResActive};
-  if(pw)body.password=pw;
-  try{const r=await authF('/api/resellers/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error();closeModal('modal-edit-res');toast('ویرایش شد ✓','ok');loadResellers()}catch(e){toast('خطا','err')}
+async function copyAllSubLinks(subId){
+  const r=await authF('/api/links');
+  const d=await r.json();
+  const links=d.links||[];
+  const sub=allSubsRaw.find(s=>s.sub_id===subId);
+  if(!sub){toast('گروه پیدا نشد','err');return}
+  const subLinkIds=sub.link_ids||[];
+  const urls=links.filter(l=>subLinkIds.includes(l.uuid)&&l.active&&!l.expired).map(l=>l.sub_url);
+  if(!urls.length){toast('کانفیگ فعالی نیست','err');return}
+  navigator.clipboard.writeText(urls.join('\n')).then(()=>toast(toFa(urls.length)+' لینک ساب کپی شد ✓','ok'));
 }
 </script>
 </body></html>"""
@@ -1917,7 +1889,7 @@ def get_public_page_html(uuid_key: str) -> str:
   --card:#0c1326;--card-b:rgba(96,148,246,0.12);--card-bh:rgba(96,148,246,0.28);
   --accent:#3B7CF6;--accent2:#6EA3FF;--accent-d:rgba(59,124,246,0.1);
   --green:#1FB87E;--green-bg:rgba(31,184,126,0.1);--green-t:#3FD79C;
-  --red:#D97706;--red-bg:rgba(239,68,68,0.1);--red-t:#FB8585;
+  --red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#FB8585;
   --amber:#F2A33D;--amber-bg:rgba(242,163,61,0.1);--amber-t:#F9C988;
   --purple:#9D7BF0;--purple-bg:rgba(157,123,240,0.1);--purple-t:#BCA4F7;
   --t1:#EFF4FF;--t2:#8AA0C4;--t3:#48577A;
@@ -2080,8 +2052,8 @@ html,body{{min-height:100%;background:var(--bg);font-family:var(--serif);color:v
 }}
 @keyframes spin{{to{{transform:rotate(360deg)}}}}
 [data-theme="dark"] .text-primary,
-[data-theme="dark"] .btn-primary{color:#D97706!important}
-[data-theme="dark"] .bg-primary{background-color:#D97706!important;border-color:#D97706!important}
+[data-theme="dark"] .btn-primary{color:#EF4444!important}
+[data-theme="dark"] .bg-primary{background-color:#EF4444!important;border-color:#EF4444!important}
 </style>
 </head>
 <body>
@@ -2097,7 +2069,7 @@ html,body{{min-height:100%;background:var(--bg);font-family:var(--serif);color:v
 <div class="wrap">
   <div class="top">
     <div class="brand">
-      <div class="brand-img"><img src="https://uploadkon.ir/uploads/09bd03_26file-00000000ab2071f486cf6128924e8d11.png" alt="cb"></div>
+      <div class="brand-img"><img src="https://s6.uupload.ir/files/file_00000000ab2071f486cf6128924e8d11_k0xq.png" alt="cb"></div>
       <div><div class="brand-name">vaslzone</div><div class="brand-sub">VaslZone Gateway · v9.3</div></div>
     </div>
     <div class="top-actions">
