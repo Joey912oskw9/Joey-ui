@@ -4,7 +4,7 @@ import os
 import hashlib
 import secrets
 import time
-import aiofiles
+import asyncpg
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
@@ -23,12 +23,6 @@ IRAN_TZ = ZoneInfo("Asia/Tehran")
 
 app = FastAPI(title="VaslZone Gateway", docs_url=None, redoc_url=None)
 
-CONFIG = {
-    "port": int(os.environ.get("PORT", 8000)),
-    "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
-    "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", "localhost"),
-}
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,47 +32,61 @@ app.add_middleware(
 )
 
 # ── Persistence ───────────────────────────────────────────────────────────────
-DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
-DATA_FILE = DATA_DIR / "rvg_state.json"
-SAVE_LOCK = asyncio.Lock()
+CONFIG = {
+    "port": int(os.environ.get("PORT", 8000)),
+    "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
+    "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", "localhost"),
+    "database_url": os.environ.get("DATABASE_URL", ""),
+}
 
+# ── Database ──────────────────────────────────────────────────────────────────
+DB_POOL = None
+
+async def get_db():
+    global DB_POOL
+    if DB_POOL is None:
+        DB_POOL = await asyncpg.create_pool(CONFIG["database_url"], min_size=1, max_size=5)
+    return DB_POOL
+
+# ── State ─────────────────────────────────────────────────────────────────────
 async def load_state():
     global LINKS, AUTH, SUBS, GLOBAL_SETTINGS, RESELLERS
     try:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        if DATA_FILE.exists():
-            async with aiofiles.open(DATA_FILE, "r", encoding="utf-8") as f:
-                raw = await f.read()
-                data = json.loads(raw)
-            LINKS.update(data.get("links", {}))
-            SUBS.update(data.get("subs", {}))
-            RESELLERS.update(data.get("resellers", {}))
-            if "global_settings" in data:
-                GLOBAL_SETTINGS.update(data["global_settings"])
-            if "password_hash" in data:
-                AUTH["password_hash"] = data["password_hash"]
-            logger.info(f"State loaded: {len(LINKS)} links, {len(SUBS)} subs, {len(RESELLERS)} resellers")
+        pool = await get_db()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT value FROM state WHERE key='rvg_state'")
+            if row:
+                data = json.loads(row["value"])
+                LINKS.update(data.get("links", {}))
+                SUBS.update(data.get("subs", {}))
+                RESELLERS.update(data.get("resellers", {}))
+                if "global_settings" in data:
+                    GLOBAL_SETTINGS.update(data["global_settings"])
+                if "password_hash" in data:
+                    AUTH["password_hash"] = data["password_hash"]
+                logger.info(f"Loaded from DB: {len(LINKS)} links, {len(SUBS)} subs, {len(RESELLERS)} resellers")
+            else:
+                logger.info("No existing state in DB, starting fresh")
     except Exception as e:
-        logger.warning(f"Could not load state: {e}")
-
+        logger.warning(f"Could not load state from DB: {e}")
 async def save_state():
-    async with SAVE_LOCK:
-        try:
-            DATA_DIR.mkdir(parents=True, exist_ok=True)
-            data = {
-                "links": dict(LINKS),
-                "subs": dict(SUBS),
-                "resellers": dict(RESELLERS),
-                "global_settings": dict(GLOBAL_SETTINGS),
-                "password_hash": AUTH["password_hash"],
-                "saved_at": datetime.now().isoformat(),
-            }
-            tmp = DATA_FILE.with_suffix(".tmp")
-            async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
-                await f.write(json.dumps(data, ensure_ascii=False, indent=2))
-            tmp.replace(DATA_FILE)
-        except Exception as e:
-            logger.warning(f"Could not save state: {e}")
+    try:
+        pool = await get_db()
+        data = {
+            "links": dict(LINKS),
+            "subs": dict(SUBS),
+            "resellers": dict(RESELLERS),
+            "global_settings": dict(GLOBAL_SETTINGS),
+            "password_hash": AUTH["password_hash"],
+            "saved_at": datetime.now().isoformat(),
+        }
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO state (key, value) VALUES ($1, $2)
+                ON CONFLICT (key) DO UPDATE SET value = $2
+            """, "rvg_state", json.dumps(data, ensure_ascii=False))
+    except Exception as e:
+        logger.warning(f"Could not save state to DB: {e}")
 
 # ── In-memory state ───────────────────────────────────────────────────────────
 connections: dict = {}
@@ -168,12 +176,21 @@ async def startup():
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
     await load_state()
+        try:
+        pool = await get_db()
+        async with pool.acquire() as conn:
+            await conn.execute("CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value JSONB)")
+    except Exception as e:
+        logger.warning(f"Could not create table: {e}")
     log_activity("system", "سرور راه‌اندازی شد", "ok")
     logger.info(f"VaslZone Gateway started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
     await save_state()
+        global DB_POOL
+    if DB_POOL:
+        await DB_POOL.close()
     if http_client:
         await http_client.aclose()
 
