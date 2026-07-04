@@ -11,7 +11,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#060f1d;--card:rgba(10,22,40,0.9);--accent:#EF4444;--text:#E8F4FF;--dim:#3D6B8E;--mid:#7BAED4;--border:rgba(239,68,68,0.2)}
+:root{--bg:#060f1d;--card:rgba(10,22,40,0.9);--accent:#D97706;--text:#E8F4FF;--dim:#3D6B8E;--mid:#7BAED4;--border:rgba(239,68,68,0.2)}
 html,body{height:100%;overflow:hidden}
 body{font-family:'Vazirmatn',sans-serif;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
 .bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(239,68,68,0.1),transparent 70%),var(--bg);z-index:0}
@@ -112,11 +112,11 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 :root{
   --bg:#060f1d;--bg2:#0a1628;--bg3:#0e1e35;
   --card:#0d1b2e;--card-b:rgba(239,68,68,0.13);--card-bh:rgba(239,68,68,0.28);
-  --accent:#EF4444;--accent2:#60A5FA;--accent-d:rgba(239,68,68,0.12);
-  --green:#10B981;--green-bg:rgba(16,185,129,0.1);--green-t:#34D399;
-  --red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#F87171;
+  --accent:#D97706;--accent2:#60A5FA;--accent-d:rgba(239,68,68,0.12);
+  --green:#D97706;--green-bg:rgba(16,185,129,0.1);--green-t:#34D399;
+  --red:#D97706;--red-bg:rgba(239,68,68,0.1);--red-t:#F87171;
   --amber:#F59E0B;--amber-bg:rgba(245,158,11,0.1);--amber-t:#FCD34D;
-  --purple:#8B5CF6;--purple-bg:rgba(139,92,246,0.1);
+  --purple:#D97706;--purple-bg:rgba(139,92,246,0.1);
   --t1:#E8F4FF;--t2:#7BAED4;--t3:#3D6B8E;
   --sidebar-w:248px;--radius:16px;
   --shadow:0 4px 24px rgba(0,0,0,0.35);
@@ -1727,7 +1727,7 @@ function checkPwStrength(val){
   reqNum.classList.toggle('met',hasNum);
   reqCase.classList.toggle('met',hasCase);
   let score=0;if(hasLen)score++;if(hasNum)score++;if(hasCase)score++;if(hasLong)score++;
-  const colors=['#EF4444','#F59E0B','#EF4444','#10B981'],labels=['خیلی ضعیف','ضعیف','متوسط','قوی'];
+  const colors=['#D97706','#F59E0B','#D97706','#D97706'],labels=['خیلی ضعیف','ضعیف','متوسط','قوی'];
   segs.forEach((s,i)=>{s.style.background=i<score?colors[Math.max(0,score-1)]:'rgba(100,116,139,.2)'});
   if(val.length===0){label.innerHTML='<i class="ti ti-shield"></i> قدرت رمز';return}
   label.innerHTML=`<i class="ti ti-shield-check" style="color:${colors[Math.max(0,score-1)]}"></i> ${labels[Math.max(0,score-1)]}`;
@@ -1758,7 +1758,7 @@ function initCharts(){
     },
     elements:{line:{capBezierPoints:true}}
   };
-  const ds1={label:'MB',data:[],borderColor:'#EF4444',backgroundColor:grad1,fill:true,tension:.42,pointRadius:0,pointHoverRadius:6,pointHoverBackgroundColor:'#EF4444',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2.5};
+  const ds1={label:'MB',data:[],borderColor:'#D97706',backgroundColor:grad1,fill:true,tension:.42,pointRadius:0,pointHoverRadius:6,pointHoverBackgroundColor:'#D97706',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,borderWidth:2.5};
   ch1=new Chart(document.getElementById('ch1'),{type:'line',data:{labels:[],datasets:[ds1]},options:opts});
 
   function makeGradientV2(ctx,c1,c2,c3){
@@ -1771,7 +1771,7 @@ function initCharts(){
   ch3=new Chart(document.getElementById('ch3'),{
     type:'line',
     data:{labels:[],datasets:[
-      {label:'مصرف',data:[],borderColor:'#EF4444',backgroundColor:gradFill3,fill:true,tension:.45,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fff',pointHoverBorderColor:'#EF4444',pointHoverBorderWidth:3,borderWidth:3,order:2},
+      {label:'مصرف',data:[],borderColor:'#D97706',backgroundColor:gradFill3,fill:true,tension:.45,pointRadius:0,pointHoverRadius:7,pointHoverBackgroundColor:'#fff',pointHoverBorderColor:'#D97706',pointHoverBorderWidth:3,borderWidth:3,order:2},
       {label:'میانگین',data:[],borderColor:'#F59E0B',borderDash:[6,5],borderWidth:1.6,pointRadius:0,fill:false,tension:0,order:1}
     ]},
     options:{
@@ -1797,7 +1797,7 @@ function initCharts(){
     type:'doughnut',
     data:{labels:['VLESS/WS','XHTTP Ultra','HTTP Proxy'],datasets:[{
       data:[55,35,10],
-      backgroundColor:['#EF4444','#10B981','#8B5CF6'],
+      backgroundColor:['#D97706','#D97706','#D97706'],
       borderColor:getComputedStyle(document.documentElement).getPropertyValue('--card')||'#0d1b2e',
       borderWidth:4,hoverOffset:10,borderRadius:6,spacing:3
     }]},
@@ -1887,7 +1887,7 @@ def get_public_page_html(uuid_key: str) -> str:
   --card:#0c1326;--card-b:rgba(96,148,246,0.12);--card-bh:rgba(96,148,246,0.28);
   --accent:#3B7CF6;--accent2:#6EA3FF;--accent-d:rgba(59,124,246,0.1);
   --green:#1FB87E;--green-bg:rgba(31,184,126,0.1);--green-t:#3FD79C;
-  --red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#FB8585;
+  --red:#D97706;--red-bg:rgba(239,68,68,0.1);--red-t:#FB8585;
   --amber:#F2A33D;--amber-bg:rgba(242,163,61,0.1);--amber-t:#F9C988;
   --purple:#9D7BF0;--purple-bg:rgba(157,123,240,0.1);--purple-t:#BCA4F7;
   --t1:#EFF4FF;--t2:#8AA0C4;--t3:#48577A;
@@ -2050,8 +2050,8 @@ html,body{{min-height:100%;background:var(--bg);font-family:var(--serif);color:v
 }}
 @keyframes spin{{to{{transform:rotate(360deg)}}}}
 [data-theme="dark"] .text-primary,
-[data-theme="dark"] .btn-primary{color:#EF4444!important}
-[data-theme="dark"] .bg-primary{background-color:#EF4444!important;border-color:#EF4444!important}
+[data-theme="dark"] .btn-primary{color:#D97706!important}
+[data-theme="dark"] .bg-primary{background-color:#D97706!important;border-color:#D97706!important}
 </style>
 </head>
 <body>
