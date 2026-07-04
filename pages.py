@@ -42,7 +42,7 @@ input[type=password]:focus{border-color:rgba(239,68,68,.55);background:rgba(0,0,
 input:focus+.ic{color:var(--accent)}
 .err{display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#F87171;align-items:center;gap:8px}
 .err.show{display:flex}
-.btn{width:100%;padding:13px;border-radius:11px;border:none;cursor:pointer;background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(37,99,235,.4);transition:.2s;position:relative;overflow:hidden}
+.btn{width:100%;padding:13px;border-radius:11px;border:none;cursor:pointer;background:linear-gradient(135deg,#2563EB,#D97706);color:#fff;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(37,99,235,.4);transition:.2s;position:relative;overflow:hidden}
 .btn::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.08);opacity:0;transition:.2s}
 .btn:hover::before{opacity:1}
 .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -112,7 +112,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 :root{
   --bg:#060f1d;--bg2:#0a1628;--bg3:#0e1e35;
   --card:#0d1b2e;--card-b:rgba(239,68,68,0.13);--card-bh:rgba(239,68,68,0.28);
-  --accent:#EF4444;--accent2:#60A5FA;--accent-d:rgba(239,68,68,0.12);
+  --accent:#EF4444;--accent2:#F59E0B;--accent-d:rgba(239,68,68,0.12);
   --green:#10B981;--green-bg:rgba(16,185,129,0.1);--green-t:#34D399;
   --red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#F87171;
   --amber:#F59E0B;--amber-bg:rgba(245,158,11,0.1);--amber-t:#FCD34D;
@@ -124,7 +124,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 [data-theme="light"]{
   --bg:#F0F4FA;--bg2:#E4EDF9;--bg3:#D5E3F5;
   --card:#FFFFFF;--card-b:rgba(239,68,68,0.15);--card-bh:rgba(239,68,68,0.35);
-  --accent:#2563EB;--accent2:#1D4ED8;--accent-d:rgba(37,99,235,0.08);
+  --accent:#2563EB;--accent2:#D97706;--accent-d:rgba(37,99,235,0.08);
   --green:#059669;--green-bg:rgba(5,150,105,0.08);--green-t:#065F46;
   --red:#DC2626;--red-bg:rgba(220,38,38,0.08);--red-t:#991B1B;
   --amber:#D97706;--amber-bg:rgba(217,119,6,0.08);--amber-t:#92400E;
@@ -766,6 +766,31 @@ a{color:inherit;text-decoration:none}
 </div>
 
 <div class="modal-bg" id="modal-res">
+<div class="modal-bg" id="modal-edit-res">
+  <div class="modal-v2" style="max-width:460px">
+    <div class="modal-v2-head">
+      <button class="modal-v2-close" onclick="closeModal('modal-edit-res')"><i class="ti ti-x"></i></button>
+      <div class="modal-v2-icon"><i class="ti ti-edit"></i></div>
+      <div class="modal-v2-title">ویرایش نماینده</div>
+      <div class="modal-v2-sub">تغییر نام، حجم، رمز و وضعیت</div>
+    </div>
+    <div class="modal-v2-body">
+      <input type="hidden" id="er-id">
+      <div class="modal-v2-field"><label>نام</label><input class="modal-v2-input" id="er-name"></div>
+      <div class="modal-v2-field"><label>رمز جدید (خالی = بدون تغییر)</label><input class="modal-v2-input" id="er-pw" type="password"></div>
+      <div class="modal-v2-field"><label>حجم (GB)</label><input class="modal-v2-input" id="er-gb" type="number"></div>
+      <div class="modal-v2-field">
+        <label>وضعیت</label>
+        <button class="btn btn-sm" id="er-status-btn" onclick="toggleResStatus()"></button>
+        <span id="er-status-label" style="font-size:11px;color:var(--t3);margin-right:8px"></span>
+      </div>
+      <div class="modal-v2-footer">
+        <button class="btn btn-o" onclick="closeModal('modal-edit-res')" style="flex:.6">انصراف</button>
+        <button class="btn btn-pur" onclick="saveEditReseller()"><i class="ti ti-check"></i> ذخیره</button>
+      </div>
+    </div>
+  </div>
+</div>
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-res')"><i class="ti ti-x"></i></button>
     <div class="modal-title"><i class="ti ti-user-plus"></i> نماینده جدید</div>
@@ -1402,15 +1427,14 @@ async function createLink(){
   const protocol=document.getElementById('nl-proto').value||'vless-ws';
   const addr=document.getElementById('nl-ips').value.split(',').filter(x=>x.trim());
   const port=document.getElementById('nl-port').value;
-  let count=parseInt(document.getElementById('nl-count').value)||1;
-if(count<1)count=1;
+  const count=parseInt(document.getElementById('nl-count').value)||1;
   const is_personal=document.getElementById('nl-personal').checked;
   const body={label,limit_value:val||0,limit_unit:unit,expires_days:exp||0,note,sub_id,protocol,ips:addr,port,is_personal};
   const opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   try{
     let r, d;
     if(count>1){body.count=count;r=await authF('/api/links/bulk',opts);d=await r.json();if(d.vless_bulk)navigator.clipboard.writeText(d.vless_bulk).then(()=>toast(count+' کانفیگ ساخته شد! لینک‌ها کپی شد ✓','ok'));else toast(count+' کانفیگ ساخته شد ✓','ok');}
-    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link).then(()=>toast('کانفیگ ساخته شد! لینک کپی شد ✓','ok'));else toast('کانفیگ ساخته شد ✓','ok');}
+    else{r=await authF('/api/links',opts);d=await r.json();if(d.vless_link)navigator.clipboard.writeText(d.vless_link)
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nl-count').value=1;document.getElementById('nl-personal').checked=false;
     loadLinks();
@@ -1497,8 +1521,7 @@ function renderSubsGrid(subs){
       </div>
       <div class="sub-card-bottom">
         <button class="btn btn-sm btn-g" onclick="openSubLinks('${esc(s.sub_id)}','${esc(s.name)}')"><i class="ti ti-link-plus"></i> کانفیگ‌ها</button>
-<button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText('${r.login_link}').then(()=>toast('لینک اختصاصی نماینده کپی شد','ok'))" title="لینک اختصاصی"><i class="ti ti-copy"></i></button>
-        <button class="btn btn-sm btn-pur" onclick="copyAllSubLinks('${esc(s.sub_id)}')"><i class="ti ti-copy"></i> کپی همه ساب‌ها</button>
+        <button class="btn btn-sm btn-o" onclick="navigator.clipboard.writeText('${esc(s.sub_url)}').then(()=>toast('لینک ساب کپی شد','ok'))"><i class="ti ti-rss"></i> ساب</button>
         <button class="btn btn-sm btn-g btn-icon" onclick="showQR('${esc(s.sub_url)}')" title="QR"><i class="ti ti-qrcode"></i></button>
         <button class="btn btn-sm btn-d btn-icon" onclick="deleteSub('${esc(s.sub_id)}')" title="حذف"><i class="ti ti-trash"></i></button>
       </div>
@@ -1516,14 +1539,12 @@ async function createSub(){
   const pw=document.getElementById('ns-pw').value;
   try{
     const r=await authF('/api/subs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc,password:pw})});
-    const d=await r.json();
     if(!r.ok)throw new Error('failed');
-    navigator.clipboard.writeText(d.public_url).then(()=>toast('گروه ساخته شد! لینک مرورگر کپی شد ✓','ok'));
     ['ns-name','ns-desc','ns-pw'].forEach(id=>document.getElementById(id).value='');
     closeModal('modal-create-sub');
-    loadSubs();
+    toast('گروه ساخته شد ✓','ok');loadSubs();
   }catch(e){toast('خطا در ساخت گروه','err')}
-
+}
 async function deleteSub(sub_id){
   if(!confirm('حذف این گروه؟ کانفیگ‌ها حذف نمی‌شوند.'))return;
   try{const r=await authF('/api/subs/'+sub_id,{method:'DELETE'});if(!r.ok)throw new Error();toast('گروه حذف شد ✓','ok');loadSubs();loadLinks();}catch(e){toast('خطا','err')}
@@ -1833,23 +1854,16 @@ document.addEventListener('DOMContentLoaded',async()=>{
   },5000);
 });
 async function loadResellers(){
-  const d=await(await fetch('/api/resellers')).json();
-  const el=document.getElementById('res-list');
-  document.getElementById('res-nb').textContent=(d.resellers||[]).length;
-  if(!d.resellers||!d.resellers.length){el.innerHTML='<div class="empty" style="padding:50px"><i class="ti ti-users"></i><p>هنوز نماینده‌ای نیست</p></div>';return}
-  el.innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--accent-d);color:var(--t2)"><th style="padding:12px 15px;text-align:right">نام</th><th style="padding:12px 15px;text-align:center">حجم</th><th style="padding:12px 15px;text-align:center">مصرف</th><th style="padding:12px 15px;text-align:center">باقی</th><th style="padding:12px 15px;text-align:center">وضعیت</th><th style="padding:12px 15px;text-align:center">لینک اختصاصی</th><th style="padding:12px 15px;text-align:left">عملیات</th></tr></thead><tbody>'+
-  d.resellers.map(r=>'<tr style="border-top:1px solid var(--card-b)"><td style="padding:14px 15px;font-weight:700">'+r.name+'</td><td style="padding:14px 15px;text-align:center">'+r.total_fmt+'</td><td style="padding:14px 15px;text-align:center">'+r.allocated_fmt+'</td><td style="padding:14px 15px;text-align:center;color:'+(r.remaining_bytes>0?'var(--green-t)':'var(--red-t)')+'">'+r.remaining_fmt+'</td><td style="padding:14px 15px;text-align:center"><span class="badge '+(r.active?'bg-green':'bg-red')+'"><span class="dot '+(r.active?'dg pulse':'dr')+'"></span> '+(r.active?'فعال':'غیرفعال')+'</span></td><td style="padding:14px 15px;text-align:center"><button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText(\''+r.login_link+'\').then(()=>toast(\'لینک اختصاصی کپی شد\',\'ok\'))" title="کپی لینک"><i class="ti ti-copy"></i></button> <button class="btn btn-sm btn-amber" onclick="resetResToken(\''+r.id+'\')" title="تغییر لینک"><i class="ti ti-refresh"></i></button></td><td style="padding:14px 15px;text-align:left"><button class="btn btn-sm btn-d" onclick="deleteReseller(\''+r.id+'\')"><i class="ti ti-trash"></i> حذف</button></td></tr>').join('')+
-  '</tbody></table></div>';
-}
-
-async function resetResToken(id){
-  if(!confirm('لینک اختصاصی این نماینده تغییر می‌کنه. مطمئنی؟'))return;
   try{
-    const r=await fetch('/api/resellers/'+id+'/reset-token',{method:'POST'});
-    if(!r.ok)throw new Error();
-    toast('لینک جدید ساخته شد ✓','ok');
-    loadResellers();
-  }catch(e){toast('خطا','err')}
+    const d=await(await authF('/api/resellers')).json();
+    const el=document.getElementById('res-list');
+    document.getElementById('res-nb').textContent=(d.resellers||[]).length;
+    if(!d.resellers||!d.resellers.length){el.innerHTML='<div class="empty" style="padding:50px"><i class="ti ti-users"></i><p>هنوز نماینده‌ای نیست</p></div>';return}
+    const host=location.host;
+    el.innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--accent-d);color:var(--t2)"><th style="padding:12px 15px;text-align:right">نام</th><th style="padding:12px 15px;text-align:center">حجم کل</th><th style="padding:12px 15px;text-align:center">مصرف</th><th style="padding:12px 15px;text-align:center">باقی</th><th style="padding:12px 15px;text-align:center">کانفیگ</th><th style="padding:12px 15px;text-align:center">وضعیت</th><th style="padding:12px 15px;text-align:center">لینک</th><th style="padding:12px 15px;text-align:left">عملیات</th></tr></thead><tbody>'+
+    d.resellers.map(r=>'<tr style="border-top:1px solid var(--card-b)"><td style="padding:14px 15px;font-weight:700">'+esc(r.name)+'</td><td style="padding:14px 15px;text-align:center">'+esc(r.total_fmt)+'</td><td style="padding:14px 15px;text-align:center">'+esc(r.allocated_fmt)+'</td><td style="padding:14px 15px;text-align:center;color:'+(r.remaining_bytes>0?'var(--green-t)':'var(--red-t)')+'">'+esc(r.remaining_fmt)+'</td><td style="padding:14px 15px;text-align:center">'+toFa(r.links_count)+'</td><td style="padding:14px 15px;text-align:center"><span class="badge '+(r.active?'bg-green':'bg-red')+'"><span class="dot '+(r.active?'dg pulse':'dr')+'"></span> '+(r.active?'فعال':'غیرفعال')+'</span></td><td style="padding:14px 15px;text-align:center"><button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText(\''+host+'\').then(()=>toast(\'لینک کپی شد\',\'ok\'))"><i class="ti ti-copy"></i></button></td><td style="padding:14px 15px;text-align:left"><button class="btn btn-sm btn-g btn-icon" onclick="openEditRes(\''+r.id+'\',\''+esc(r.name)+'\',\''+r.total_bytes+'\',\''+r.active+'\')" title="ویرایش"><i class="ti ti-edit"></i></button><button class="btn btn-sm btn-d btn-icon" onclick="deleteReseller(\''+r.id+'\')" title="حذف"><i class="ti ti-trash"></i></button></td></tr>').join('')+
+    '</tbody></table></div>';
+  }catch(e){}
 }
 async function createReseller(){
   await fetch('/api/resellers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('r-name').value,password:document.getElementById('r-pw').value,limit_gb:document.getElementById('r-gb').value})});
@@ -1857,16 +1871,30 @@ async function createReseller(){
 }
 async function deleteReseller(id){if(!confirm('حذف?'))return;await fetch('/api/resellers/'+id,{method:'DELETE'});loadResellers();}
 async function saveGlobalIPs(){await fetch('/api/settings/global-ips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ips:document.getElementById('g-ips').value.split(',').filter(x=>x.trim()),port:document.getElementById('g-port').value})});toast('ذخیره شد','ok');}
-async function copyAllSubLinks(subId){
-  const r=await authF('/api/links');
-  const d=await r.json();
-  const links=d.links||[];
-  const sub=allSubsRaw.find(s=>s.sub_id===subId);
-  if(!sub){toast('گروه پیدا نشد','err');return}
-  const subLinkIds=sub.link_ids||[];
-  const urls=links.filter(l=>subLinkIds.includes(l.uuid)&&l.active&&!l.expired).map(l=>l.sub_url);
-  if(!urls.length){toast('کانفیگ فعالی نیست','err');return}
-  navigator.clipboard.writeText(urls.join('\n')).then(()=>toast(toFa(urls.length)+' لینک ساب کپی شد ✓','ok'));
+// === نمایندگان کامل ===
+let currentEditResId=null,currentEditResActive=true;
+function openEditRes(id,name,totalBytes,active){
+  currentEditResId=id; currentEditResActive=active==='true';
+  document.getElementById('er-id').value=id;
+  document.getElementById('er-name').value=name;
+  document.getElementById('er-pw').value='';
+  document.getElementById('er-gb').value=Math.round(parseInt(totalBytes)/1024/1024/1024);
+  updateResStatusUI(); openModal('modal-edit-res');
+}
+function toggleResStatus(){currentEditResActive=!currentEditResActive;updateResStatusUI()}
+function updateResStatusUI(){
+  const btn=document.getElementById('er-status-btn'),lbl=document.getElementById('er-status-label');
+  btn.className='btn btn-sm '+(currentEditResActive?'bg-green':'bg-red');
+  btn.innerHTML=currentEditResActive?'<span class="dot dg pulse"></span> فعال':'<span class="dot dr"></span> غیرفعال';
+  lbl.textContent=currentEditResActive?'دسترسی دارد':'دسترسی ندارد';
+  lbl.style.color=currentEditResActive?'var(--green-t)':'var(--red-t)';
+}
+async function saveEditReseller(){
+  const id=document.getElementById('er-id').value,name=document.getElementById('er-name').value.trim(),pw=document.getElementById('er-pw').value.trim(),gb=document.getElementById('er-gb').value;
+  if(!name||!gb){toast('نام و حجم رو پر کن','err');return}
+  const body={name,limit_gb:parseFloat(gb),active:currentEditResActive};
+  if(pw)body.password=pw;
+  try{const r=await authF('/api/resellers/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error();closeModal('modal-edit-res');toast('ویرایش شد ✓','ok');loadResellers()}catch(e){toast('خطا','err')}
 }
 </script>
 </body></html>"""
@@ -1942,7 +1970,7 @@ html,body{{min-height:100%;background:var(--bg);font-family:var(--serif);color:v
 .copy-all-text{{flex:1;min-width:160px}}
 .copy-all-title{{font-size:13.5px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px}}
 .copy-all-sub{{font-size:10px;color:rgba(255,255,255,.78);margin-top:3px}}
-.copy-all-btn{{background:#fff;color:#1D4ED8;border:none;border-radius:12px;padding:10px 19px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.18s;white-space:nowrap}}
+.copy-all-btn{{background:#fff;color:#D97706;border:none;border-radius:12px;padding:10px 19px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.18s;white-space:nowrap}}
 .copy-all-btn:hover{{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.22)}}
 .copy-all-btn:active{{transform:translateY(0) scale(.98)}}
 
