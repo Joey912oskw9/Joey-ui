@@ -327,6 +327,7 @@ async def subscription_single(uuid: str, request: Request):
     
     ua = request.headers.get("user-agent", "").lower()
     if any(b in ua for b in ["mozilla", "chrome", "safari", "firefox", "edge", "opera"]):
+        from public_page import get_single_sub_page_html
         return HTMLResponse(content=get_single_sub_page_html(uuid))
     
     host = get_host()
