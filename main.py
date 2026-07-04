@@ -192,7 +192,8 @@ async def fetch_ip_flag(ip: str) -> str:
     if not ip or ":" in ip: return ""
     try:
         resp = await http_client.get(f"http://ip-api.com/json/{ip}?fields=countryCode", timeout=2.0)
-        cc = resp.json().get("countryCode")
+        data = resp.json()
+        cc = data.get("countryCode")
         if cc and len(cc) == 2:
             return chr(ord(cc[0]) + 127397) + chr(ord(cc[1]) + 127397)
     except:
@@ -267,7 +268,6 @@ def client_ip(request: Request) -> str:
     real_ip = request.headers.get("x-real-ip")
     if real_ip: return real_ip.strip()
     return request.client.host if request.client else "?"
-
 # ── Default link ──────────────────────────────────────────────────────────────
 _default_link_created = False
 async def ensure_default_link():
@@ -290,7 +290,7 @@ async def ensure_default_link():
 # ── Reseller Capacity ─────────────────────────────────────────────────────────
 async def check_reseller_capacity(reseller_id: str, new_limit_bytes: int):
     if new_limit_bytes == 0:
-        raise HTTPException(status_code=400, detail="نمی‌توانید کانفیگ نامحدود بسازید.")
+        raise HTTPException(status_code=400, detail="نماینده نمی‌تواند کانفیگ با حجم نامحدود بسازد.")
     async with RESELLERS_LOCK:
         res = RESELLERS.get(reseller_id)
         if not res or not res.get("active", True):
@@ -302,7 +302,10 @@ async def check_reseller_capacity(reseller_id: str, new_limit_bytes: int):
                     allocated += d.get("limit_bytes", 0)
         remaining = res.get("total_bytes", 0) - allocated
         if new_limit_bytes > remaining:
-            raise HTTPException(status_code=400, detail=f"حجم درخواستی بیشتر از باقی‌مانده است.")
+            raise HTTPException(status_code=400, detail=f"حجم درخواستی {fmt_bytes(new_limit_bytes)} بیشتر از حجم باقی‌مانده {fmt_bytes(remaining)} است.")
+        if allocated + new_limit_bytes > res.get("total_bytes", 0):
+            raise HTTPException(status_code=400, detail="حجم مجاز شما برای ساخت کانفیگ به پایان رسیده است.")
+
 # ── Basic endpoints ───────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
@@ -369,11 +372,9 @@ async def create_sub(request: Request, _=Depends(require_auth)):
     sub_id = generate_uuid()
     uuid_key = secrets.token_urlsafe(16)
     async with SUBS_LOCK:
-        SUBS[sub_id] = {
-            "name": name, "desc": desc,
+        SUBS[sub_id] = {"name": name, "desc": desc,
             "password_hash": hash_password(password) if password else None,
-            "uuid_key": uuid_key, "created_at": datetime.now().isoformat(), "link_ids": []
-        }
+            "uuid_key": uuid_key, "created_at": datetime.now().isoformat(), "link_ids": []}
     asyncio.create_task(save_state())
     log_activity("sub", f"گروه «{name}» ساخته شد", "ok")
     host = get_host()
@@ -390,14 +391,12 @@ async def list_subs(_=Depends(require_auth)):
         link_ids = s.get("link_ids", [])
         active_count = sum(1 for lid in link_ids if is_link_allowed(snap_links.get(lid)))
         total_used = sum(snap_links[lid].get("used_bytes", 0) for lid in link_ids if lid in snap_links)
-        result.append({
-            "sub_id": sid, **s, "password_hash": None,
+        result.append({"sub_id": sid, **s, "password_hash": None,
             "has_password": s.get("password_hash") is not None,
             "links_count": len(link_ids), "active_count": active_count,
             "total_used_bytes": total_used, "total_used_fmt": fmt_bytes(total_used),
             "public_url": f"https://{host}/p/{s['uuid_key']}",
-            "sub_url": f"https://{host}/sub-group/{s['uuid_key']}"
-        })
+            "sub_url": f"https://{host}/sub-group/{s['uuid_key']}"})
     result.sort(key=lambda x: x["created_at"], reverse=True)
     return {"subs": result}
 
@@ -453,12 +452,14 @@ async def api_login(request: Request):
     body = await request.json()
     ip = client_ip(request)
     pw = str(body.get("password", ""))
+    
     if hash_password(pw) == AUTH["password_hash"]:
         token = await create_session("admin", "admin")
         log_activity("auth", f"ورود ادمین از {ip}", "ok")
         resp = JSONResponse({"ok": True, "role": "admin"})
         resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
         return resp
+    
     async with RESELLERS_LOCK:
         for rid, res in RESELLERS.items():
             if res.get("active", True) and res.get("password_hash") == hash_password(pw):
@@ -467,6 +468,7 @@ async def api_login(request: Request):
                 resp = JSONResponse({"ok": True, "role": "reseller"})
                 resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
                 return resp
+    
     log_activity("auth", f"تلاش ورود ناموفق از {ip}", "err")
     raise HTTPException(status_code=401, detail="رمز عبور اشتباه است")
 
@@ -516,18 +518,12 @@ async def update_global_ips(request: Request, _=Depends(require_auth)):
 async def get_stats(_=Depends(require_auth)):
     async with LINKS_LOCK: snap = dict(LINKS)
     return {
-        "active_connections": len(connections),
-        "total_traffic_mb": round(stats["total_bytes"] / (1024 ** 2), 2),
-        "total_requests": stats["total_requests"],
-        "total_errors": stats["total_errors"],
-        "uptime": uptime(),
-        "timestamp": datetime.now().isoformat(),
-        "hourly": dict(hourly_traffic),
-        "recent_errors": list(error_logs)[-10:],
-        "links_count": len(snap),
-        "active_links": sum(1 for l in snap.values() if is_link_allowed(l)),
-        "expired_links": sum(1 for l in snap.values() if is_link_expired(l)),
-        "subs_count": len(SUBS),
+        "active_connections": len(connections), "total_traffic_mb": round(stats["total_bytes"] / (1024 ** 2), 2),
+        "total_requests": stats["total_requests"], "total_errors": stats["total_errors"],
+        "uptime": uptime(), "timestamp": datetime.now().isoformat(),
+        "hourly": dict(hourly_traffic), "recent_errors": list(error_logs)[-10:],
+        "links_count": len(snap), "active_links": sum(1 for l in snap.values() if is_link_allowed(l)),
+        "expired_links": sum(1 for l in snap.values() if is_link_expired(l)), "subs_count": len(SUBS),
         "resellers_count": len(RESELLERS),
     }
 
@@ -540,29 +536,25 @@ async def get_connections(_=Depends(require_auth)):
     async with LINKS_LOCK: snap = dict(LINKS)
     grouped: dict[str, dict] = {}
     for conn_id, c in connections.items():
-        ip = c.get("ip", "?")
+        ip = c.get("ip", "نامشخص")
         link = snap.get(c.get("uuid"))
-        label = link.get("label") if link else "?"
+        label = link.get("label") if link else "نامشخص"
         g = grouped.get(ip)
         if g is None:
-            g = {"ip": ip, "sessions": 0, "bytes": 0, "labels": set(), "transports": set(), "connected_at": c.get("connected_at"), "last_connected_at": c.get("connected_at")}
+            g = {"ip": ip, "sessions": 0, "bytes": 0, "labels": set(), "transports": set(),
+                 "first_connected_at": c.get("connected_at"), "last_connected_at": c.get("connected_at")}
             grouped[ip] = g
-        g["sessions"] += 1
-        g["bytes"] += c.get("bytes", 0)
-        g["labels"].add(label)
+        g["sessions"] += 1; g["bytes"] += c.get("bytes", 0); g["labels"].add(label)
         g["transports"].add(c.get("transport", "vless-ws"))
         ca = c.get("connected_at")
         if ca:
-            if not g["connected_at"] or ca < g["connected_at"]: g["connected_at"] = ca
+            if not g["first_connected_at"] or ca < g["first_connected_at"]: g["first_connected_at"] = ca
             if not g["last_connected_at"] or ca > g["last_connected_at"]: g["last_connected_at"] = ca
-    result = [{
-        "ip": k, "sessions": v["sessions"], "labels": sorted(v["labels"]),
-        "label": " · ".join(sorted(v["labels"])) if v["labels"] else "?",
+    result = [{"ip": k, "sessions": v["sessions"], "labels": sorted(v["labels"]),
+        "label": " · ".join(sorted(v["labels"])) if v["labels"] else "نامشخص",
         "transports": sorted(v["transports"]), "bytes": v["bytes"],
-        "bytes_fmt": fmt_bytes(v["bytes"]),
-        "connected_at": v["connected_at"],
-        "last_connected_at": v["last_connected_at"]
-    } for k, v in grouped.items()]
+        "bytes_fmt": fmt_bytes(v["bytes"]), "connected_at": v["first_connected_at"],
+        "last_connected_at": v["last_connected_at"]} for k, v in grouped.items()]
     result.sort(key=lambda x: x.get("last_connected_at") or "", reverse=True)
     return {"connections": result, "count": len(result), "raw_count": len(connections)}
 # ── Link Management ───────────────────────────────────────────────────────────
@@ -570,6 +562,7 @@ async def get_connections(_=Depends(require_auth)):
 async def create_link(request: Request):
     s = await require_reseller_auth(request)
     body = await request.json()
+    
     label = (body.get("label") or "لینک جدید").strip()[:60]
     lv = float(body.get("limit_value") or 0)
     lu = body.get("limit_unit") or "GB"
@@ -583,12 +576,15 @@ async def create_link(request: Request):
     sub_id = body.get("sub_id")
     protocol = body.get("protocol") or DEFAULT_PROTOCOL
     if protocol not in PROTOCOLS: protocol = DEFAULT_PROTOCOL
+
     if s["role"] == "reseller":
         await check_reseller_capacity(s["user_id"], limit_bytes)
         is_personal = True
+
     flag = ""
     if ips: flag = await fetch_ip_flag(ips[0])
     if flag: label = f"{label} {flag}"
+
     uid = generate_uuid()
     async with LINKS_LOCK:
         LINKS[uid] = {
@@ -604,10 +600,11 @@ async def create_link(request: Request):
                     ids = SUBS[sub_id].setdefault("link_ids", [])
                     if uid not in ids: ids.append(uid)
     asyncio.create_task(save_state())
-    log_activity("link", f"کانفیگ «{label}» ساخته شد", "ok")
+    log_activity("link", f"کانفیگ «{label}» توسط {s['user_id']} ساخته شد", "ok")
     host = get_host()
     vless_list = generate_vless_links(LINKS[uid], uid, host)
-    return {"uuid": uid, **LINKS[uid], "vless_link": "\n".join(vless_list), "sub_url": f"https://{host}/sub/{uid}"}
+    return {"uuid": uid, **LINKS[uid], "vless_link": "\n".join(vless_list),
+            "sub_url": f"https://{host}/sub/{uid}"}
 
 @app.post("/api/links/bulk")
 async def create_links_bulk(request: Request):
@@ -615,6 +612,7 @@ async def create_links_bulk(request: Request):
     body = await request.json()
     count = min(int(body.get("count", 1)), 100)
     if count < 1: count = 1
+    
     base_label = (body.get("label") or "Bulk").strip()[:40]
     lv = float(body.get("limit_value") or 0)
     lu = body.get("limit_unit") or "GB"
@@ -627,11 +625,14 @@ async def create_links_bulk(request: Request):
     sub_id = body.get("sub_id")
     protocol = body.get("protocol") or DEFAULT_PROTOCOL
     if protocol not in PROTOCOLS: protocol = DEFAULT_PROTOCOL
+
     if s["role"] == "reseller":
         await check_reseller_capacity(s["user_id"], limit_bytes * count)
         is_personal = True
+
     created_uids = []
     host = get_host()
+    
     for i in range(count):
         target_ip = ips[i % len(ips)] if ips else ""
         flag = await fetch_ip_flag(target_ip) if target_ip else ""
@@ -652,19 +653,25 @@ async def create_links_bulk(request: Request):
                         ids = SUBS[sub_id].setdefault("link_ids", [])
                         if uid not in ids: ids.append(uid)
         created_uids.append(uid)
+    
     asyncio.create_task(save_state())
-    log_activity("link", f"{count} کانفیگ ساخته شد", "ok")
+    log_activity("link", f"{count} کانفیگ {base_label} ساخته شد", "ok")
+    
     all_vless = []
     for uid in created_uids:
         all_vless.extend(generate_vless_links(LINKS[uid], uid, host))
+    
     sub_url = ""
     if sub_id:
         async with SUBS_LOCK:
             if sub_id in SUBS:
                 uuid_key = SUBS[sub_id].get("uuid_key", "")
                 if uuid_key: sub_url = f"https://{host}/sub-group/{uuid_key}"
-    sub_bulk = "\n".join([f"https://{host}/sub/{uid}" for uid in created_uids])
-    return {"ok": True, "count": count, "created_uids": created_uids, "sub_url": sub_url, "sub_bulk": sub_bulk, "vless_bulk": "\n".join(all_vless)}
+    
+    sub_bulk = "\n".join([f"https://{host}/sub/{uid}" for uid in created_uids])  # ← این خط اضافه شد
+    
+    return {"ok": True, "count": count, "created_uids": created_uids,
+            "sub_url": sub_url, "sub_bulk": sub_bulk, "vless_bulk": "\n".join(all_vless)}  # ← sub_bulk اضافه شد
 
 @app.get("/api/links")
 async def list_links(request: Request):
@@ -675,7 +682,8 @@ async def list_links(request: Request):
         for uid, d in LINKS.items():
             if s["role"] == "reseller" and d.get("creator_id") != s["user_id"]: continue
             vless_list = generate_vless_links(d, uid, host)
-            result.append({"uuid": uid, **d, "expired": is_link_expired(d), "vless_link": "\n".join(vless_list), "sub_url": f"https://{host}/sub/{uid}"})
+            result.append({"uuid": uid, **d, "expired": is_link_expired(d),
+                "vless_link": "\n".join(vless_list), "sub_url": f"https://{host}/sub/{uid}"})
     result.sort(key=lambda x: x["created_at"], reverse=True)
     return {"links": result}
 
@@ -686,7 +694,8 @@ async def update_link(uid: str, request: Request):
     async with LINKS_LOCK:
         if uid not in LINKS: raise HTTPException(status_code=404, detail="link not found")
         link = LINKS[uid]
-        if s["role"] == "reseller" and link.get("creator_id") != s["user_id"]: raise HTTPException(status_code=403, detail="forbidden")
+        if s["role"] == "reseller" and link.get("creator_id") != s["user_id"]:
+            raise HTTPException(status_code=403, detail="forbidden")
         if "active" in body: link["active"] = bool(body["active"])
         if "label" in body: link["label"] = str(body["label"])[:60]
         if "note" in body: link["note"] = str(body["note"])[:200]
@@ -707,7 +716,8 @@ async def delete_link(uid: str, request: Request):
     s = await require_reseller_auth(request)
     async with LINKS_LOCK:
         if uid not in LINKS: raise HTTPException(status_code=404, detail="not found")
-        if s["role"] == "reseller" and LINKS[uid].get("creator_id") != s["user_id"]: raise HTTPException(status_code=403, detail="forbidden")
+        if s["role"] == "reseller" and LINKS[uid].get("creator_id") != s["user_id"]:
+            raise HTTPException(status_code=403, detail="forbidden")
         sub_id = LINKS[uid].get("sub_id")
         del LINKS[uid]
         if sub_id:
@@ -728,7 +738,7 @@ async def reset_reseller_token(rid: str, _=Depends(require_auth)):
     asyncio.create_task(save_state())
     return {"ok": True, "login_token": RESELLERS[rid]["login_token"]}
 
-# ── Reseller Management ───────────────────────────────────────────────────────
+# ── Reseller Management (Admin Only) ──────────────────────────────────────────
 @app.get("/api/resellers")
 async def list_resellers(_=Depends(require_auth)):
     host = get_host()
@@ -768,7 +778,8 @@ async def create_reseller(request: Request, _=Depends(require_auth)):
         RESELLERS[rid] = {
             "name": name, "password_hash": hash_password(pw),
             "total_bytes": parse_size_to_bytes(limit_gb, "GB"),
-            "active": True, "login_token": secrets.token_urlsafe(16),
+            "active": True, 
+            "login_token": secrets.token_urlsafe(16),
             "created_at": datetime.now().isoformat()
         }
     asyncio.create_task(save_state())
@@ -779,7 +790,7 @@ async def create_reseller(request: Request, _=Depends(require_auth)):
 async def update_reseller(rid: str, request: Request, _=Depends(require_auth)):
     body = await request.json()
     async with RESELLERS_LOCK:
-        if rid not in RESELLERS: raise HTTPException(404, "not found")
+        if rid not in RESELLERS: raise HTTPException(404, "نماینده یافت نشد")
         r = RESELLERS[rid]
         if "name" in body and str(body["name"]).strip(): r["name"] = str(body["name"]).strip()
         if "active" in body: r["active"] = bool(body["active"])
@@ -790,10 +801,14 @@ async def update_reseller(rid: str, request: Request, _=Depends(require_auth)):
 
 @app.delete("/api/resellers/{rid}")
 async def delete_reseller(rid: str, _=Depends(require_auth)):
-    async with RESELLERS_LOCK: del RESELLERS[rid]
+    async with RESELLERS_LOCK:
+        if rid not in RESELLERS: raise HTTPException(404)
+        del RESELLERS[rid]
     asyncio.create_task(save_state())
-    return {"ok": True}
+    log_activity("system", f"نماینده {rid[:8]}... حذف شد", "warn")
+    return {"ok": True, "deleted": rid}
 
+# ── Reseller Report (Admin) ───────────────────────────────────────────────────
 @app.get("/api/resellers/{rid}/links")
 async def reseller_links(rid: str, _=Depends(require_auth)):
     async with LINKS_LOCK:
@@ -830,8 +845,7 @@ body{{font-family:Tahoma,sans-serif;background:#060f1d;color:#E8F4FF;padding:16p
 <div class="c"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>مصرف: {used_s}</span><span>از {total_s}</span></div>
 <div class="br"><div class="bf"></div></div>
 <div style="display:flex;justify-content:space-between;font-size:9px;color:#3D6B8E"><span>باقی: {rem_s}</span><span>{pct}%</span></div></div>
-<div class="g">
-<div class="gb"><div class="l">حجم کل</div><div class="v">{total_s}</div></div>
+<div class="g"><div class="gb"><div class="l">حجم کل</div><div class="v">{total_s}</div></div>
 <div class="gb"><div class="l">باقیمانده</div><div class="v" style="color:{bar}">{rem_s}</div></div>
 <div class="gb"><div class="l">کانفیگها</div><div class="v">{cnt}</div></div></div>
 <div class="c"><div style="font-size:12px;color:#7BAED4;line-height:2"><b>محدودیتها:</b><br>- حجم کل: {total_s}<br>- باقیمانده: {rem_gb} GB<br>- کانفیگ نامحدود: ممنوع</div></div>
@@ -850,15 +864,15 @@ async def reseller_panel(request: Request):
             return RedirectResponse(url="/login")
         nm, tot = res["name"], res["total_bytes"]
     async with LINKS_LOCK:
-        usd = sum(d.get("used_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
-        alc = sum(d.get("limit_bytes", 0) for d in LINKS.values() if d.get("creator_id") == rid)
-        rem = max(0, tot - alc)
-        cnt = sum(1 for d in LINKS.values() if d.get("creator_id") == rid)
-    p = int(min(100, usd / tot * 100)) if tot > 0 else 0
+        usd = sum(d.get("used_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
+        alc = sum(d.get("limit_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
+        rem = max(0, tot-alc)
+        cnt = sum(1 for d in LINKS.values() if d.get("creator_id")==rid)
+    p = int(min(100, usd/tot*100)) if tot > 0 else 0
     def _b(x):
-        if x < 1024: return f"{x}B"
-        if x < 1024**2: return f"{x/1024:.0f}KB"
-        if x < 1024**3: return f"{x/1024**2:.1f}MB"
+        if x<1024: return f"{x}B"
+        if x<1024**2: return f"{x/1024:.0f}KB"
+        if x<1024**3: return f"{x/1024**2:.1f}MB"
         return f"{x/1024**3:.2f}GB"
     rem_gb = f"{rem / (1024**3):.3f}"
     return _make_reseller_html(nm, _b(tot), _b(usd), _b(rem), rem_gb, cnt, p)
@@ -915,7 +929,8 @@ async def http_proxy(target_url: str, request: Request):
         stats["total_bytes"] += len(resp.content)
         stats["total_requests"] += 1
         hourly_traffic[now_ir().strftime("%H:00")] += len(resp.content)
-        return Response(content=resp.content, status_code=resp.status_code, headers={k: v for k, v in resp.headers.items() if k.lower() not in _HOP})
+        return Response(content=resp.content, status_code=resp.status_code,
+            headers={k: v for k, v in resp.headers.items() if k.lower() not in _HOP})
     except Exception as exc:
         stats["total_errors"] += 1
         error_logs.append({"error": str(exc), "url": target_url, "time": datetime.now().isoformat()})
@@ -948,16 +963,14 @@ async def public_sub_data(uuid_key: str, request: Request):
             link = snap.get(lid)
             if not link: continue
             active_conns = sum(1 for c in connections.values() if c.get("uuid") == lid)
-            links_out.append({
-                "uuid": lid, "label": link["label"], "active": is_link_allowed(link),
+            links_out.append({"uuid": lid, "label": link["label"], "active": is_link_allowed(link),
                 "protocol": link.get("protocol", DEFAULT_PROTOCOL), "used_bytes": link.get("used_bytes", 0),
                 "used_fmt": fmt_bytes(link.get("used_bytes", 0)),
                 "limit_bytes": link.get("limit_bytes", 0),
                 "limit_fmt": "∞" if link.get("limit_bytes", 0) == 0 else fmt_bytes(link["limit_bytes"]),
                 "expires_at": link.get("expires_at"),
                 "vless_link": "\n".join(generate_vless_links(link, lid, host)),
-                "sub_url": f"https://{host}/sub/{lid}", "connections": active_conns
-            })
+                "sub_url": f"https://{host}/sub/{lid}", "connections": active_conns})
         total_used = sum(l["used_bytes"] for l in links_out)
         return {"locked": False, "name": sub["name"], "desc": sub.get("desc", ""),
             "sub_url": f"https://{host}/sub-group/{uuid_key}",
