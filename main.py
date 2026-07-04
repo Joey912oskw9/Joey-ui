@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import httpx
 import logging
+from supabase import create_client, Client
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("VaslZone-Gateway")
