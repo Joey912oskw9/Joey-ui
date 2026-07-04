@@ -1418,8 +1418,8 @@ async function createLink(){
     }else{
       r=await authF('/api/links',opts);
       d=await r.json();
-      if(d.sub_bulk)navigator.clipboard.writeText(d.sub_bulk).then(()=>toast('کانفیگ ساخته شد! لینک ساب کپی شد ✓','ok'));
-      else if(d.vless_link)navigator.clipboard.writeText(d.vless_link).then(()=>toast('کانفیگ ساخته شد ✓','ok'));
+      if(d.sub_url)navigator.clipboard.writeText(d.sub_url).then(()=>toast('کانفیگ ساخته شد! لینک ساب کپی شد ✓','ok'));
+      else if(d.sub_url)navigator.clipboard.writeText(d.sub_url).then(()=>toast('کانفیگ ساخته شد ✓','ok'));
     }
     ['nl-label','nl-val','nl-exp','nl-note','nl-ips','nl-port'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nl-count').value=1;
