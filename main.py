@@ -52,8 +52,10 @@ async def load_state():
             LINKS.update(data.get("links", {}))
             SUBS.update(data.get("subs", {}))
             RESELLERS.update(data.get("resellers", {}))
-            if "global_settings" in data: GLOBAL_SETTINGS.update(data["global_settings"])
-            if "password_hash" in data: AUTH["password_hash"] = data["password_hash"]
+            if "global_settings" in data:
+                GLOBAL_SETTINGS.update(data["global_settings"])
+            if "password_hash" in data:
+                AUTH["password_hash"] = data["password_hash"]
             logger.info(f"State loaded: {len(LINKS)} links, {len(SUBS)} subs, {len(RESELLERS)} resellers")
     except Exception as e:
         logger.warning(f"Could not load state: {e}")
@@ -62,7 +64,11 @@ async def save_state():
     async with SAVE_LOCK:
         try:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
-            data = { "links": dict(LINKS), "subs": dict(SUBS), "resellers": dict(RESELLERS), "global_settings": dict(GLOBAL_SETTINGS), "password_hash": AUTH["password_hash"], "saved_at": datetime.now().isoformat() }
+            data = {
+                "links": dict(LINKS), "subs": dict(SUBS), "resellers": dict(RESELLERS),
+                "global_settings": dict(GLOBAL_SETTINGS), "password_hash": AUTH["password_hash"],
+                "saved_at": datetime.now().isoformat(),
+            }
             tmp = DATA_FILE.with_suffix(".tmp")
             async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(data, ensure_ascii=False, indent=2))
@@ -84,12 +90,12 @@ SUBS_LOCK = asyncio.Lock()
 RESELLERS = {}
 RESELLERS_LOCK = asyncio.Lock()
 
-GLOBAL_SETTINGS = { "ips": [], "port": None }
+GLOBAL_SETTINGS = {"ips": [], "port": None}
 PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
 DEFAULT_PROTOCOL = "vless-ws"
 
 def log_activity(kind, message, level="info"):
-    activity_logs.append({ "kind": kind, "level": level, "message": message, "time": datetime.now().isoformat() })
+    activity_logs.append({"kind": kind, "level": level, "message": message, "time": datetime.now().isoformat()})
 
 SESSION_COOKIE = "rvg_session"
 SESSION_TTL = 60 * 60 * 24 * 7
@@ -103,7 +109,8 @@ SESSIONS_LOCK = asyncio.Lock()
 
 async def create_session(role="admin", user_id="admin"):
     token = secrets.token_urlsafe(32)
-    async with SESSIONS_LOCK: SESSIONS[token] = {"exp": time.time() + SESSION_TTL, "role": role, "user_id": user_id}
+    async with SESSIONS_LOCK:
+        SESSIONS[token] = {"exp": time.time() + SESSION_TTL, "role": role, "user_id": user_id}
     return token
 
 async def get_session_data(token):
@@ -232,20 +239,20 @@ async def deflink():
             uid = hashlib.sha256(f"default{CONFIG['secret']}".encode()).hexdigest()
             uid = f"{uid[:8]}-{uid[8:12]}-{uid[12:16]}-{uid[16:20]}-{uid[20:32]}"
             if uid not in LINKS:
-                LINKS[uid] = {"label":"لینک پیش‌فرض","limit_bytes":0,"used_bytes":0,"created_at":datetime.now().isoformat(),"active":True,"expires_at":None,"note":"","is_default":True,"sub_id":None,"protocol":DEFAULT_PROTOCOL,"ips":[],"port":None,"is_personal":False}
+                LINKS[uid] = {"label":"","limit_bytes":0,"used_bytes":0,"created_at":datetime.now().isoformat(),"active":True,"expires_at":None,"note":"","is_default":True,"sub_id":None,"protocol":DEFAULT_PROTOCOL,"ips":[],"port":None,"is_personal":False}
     asyncio.create_task(save_state())
     _created = True
 
 async def chk_cap(rid, n):
-    if n == 0: raise HTTPException(400, "نمی‌توانید کانفیگ نامحدود بسازید.")
+    if n == 0: raise HTTPException(400, "No unlimited")
     async with RESELLERS_LOCK:
         r = RESELLERS.get(rid)
-        if not r or not r.get("active", True): raise HTTPException(403, "غیرفعال")
+        if not r or not r.get("active", True): raise HTTPException(403, "Disabled")
         a = 0
         async with LINKS_LOCK:
             for d in LINKS.values():
                 if d.get("creator_id") == rid: a += d.get("limit_bytes", 0)
-        if n > r.get("total_bytes", 0) - a: raise HTTPException(400, "حجم درخواستی بیشتر از باقی‌مانده")
+        if n > r.get("total_bytes", 0) - a: raise HTTPException(400, "Not enough")
 @app.get("/")
 async def root(): return {"service":"VaslZone Gateway","version":"9.2","status":"active"}
 
@@ -289,7 +296,7 @@ async def create_sub(request: Request, _=Depends(require_auth)):
     body = await request.json()
     sid,uk = generate_uuid(), secrets.token_urlsafe(16)
     async with SUBS_LOCK:
-        SUBS[sid] = {"name":(body.get("name") or "جدید").strip()[:60],"desc":(body.get("desc") or "").strip()[:200],"password_hash":hash_password(body.get("password","")) if body.get("password") else None,"uuid_key":uk,"created_at":datetime.now().isoformat(),"link_ids":[]}
+        SUBS[sid] = {"name":(body.get("name") or "New").strip()[:60],"desc":(body.get("desc") or "").strip()[:200],"password_hash":hash_password(body.get("password","")) if body.get("password") else None,"uuid_key":uk,"created_at":datetime.now().isoformat(),"link_ids":[]}
     asyncio.create_task(save_state())
     h = get_host()
     return {"sub_id":sid,**SUBS[sid],"public_url":f"https://{h}/p/{uk}","sub_url":f"https://{h}/sub-group/{uk}"}
@@ -344,7 +351,7 @@ async def api_login(request: Request):
                 resp = JSONResponse({"ok":True,"role":"reseller"})
                 resp.set_cookie(SESSION_COOKIE,t,max_age=SESSION_TTL,httponly=True,samesite="lax",path="/")
                 return resp
-    raise HTTPException(401,"رمز اشتباه")
+    raise HTTPException(401,"Wrong password")
 
 @app.post("/api/logout")
 async def api_logout(request: Request):
@@ -362,9 +369,9 @@ async def api_me(request: Request):
 async def api_change_password(request: Request, token=Depends(require_auth)):
     body = await request.json()
     cur = str(body.get("current_password",""))
-    if hash_password(cur)!=AUTH["password_hash"]: raise HTTPException(400,"غلط")
+    if hash_password(cur)!=AUTH["password_hash"]: raise HTTPException(400,"Wrong")
     new = str(body.get("new_password",""))
-    if len(new)<4: raise HTTPException(400,"حداقل ۴ کاراکتر")
+    if len(new)<4: raise HTTPException(400,"Min 4 chars")
     AUTH["password_hash"] = hash_password(new)
     async with SESSIONS_LOCK: SESSIONS.clear();SESSIONS[token]=time.time()+SESSION_TTL
     await save_state()
@@ -396,7 +403,7 @@ async def get_connections(_=Depends(require_auth)):
     g = {}
     for cid,c in connections.items():
         ip = c.get("ip","?")
-        x = g.setdefault(ip, {"ip":ip,"sessions":0,"bytes":0,"labels":set()})
+        x = g.setdefault(ip,{"ip":ip,"sessions":0,"bytes":0,"labels":set()})
         x["sessions"]+=1; x["bytes"]+=c.get("bytes",0)
         x["labels"].add(snap.get(c.get("uuid"),{}).get("label","?"))
     return {"connections":sorted([{"ip":k,"sessions":v["sessions"],"label":" - ".join(sorted(v["labels"])),"bytes_fmt":fb(v["bytes"])} for k,v in g.items()],key=lambda x:x["sessions"],reverse=True),"count":len(g)}
@@ -406,12 +413,12 @@ async def create_link(request: Request):
     s = await require_reseller_auth(request)
     body = await request.json()
     lv = float(body.get("limit_value") or 0)
-    lb = 0 if lv<=0 else p2b(lv, body.get("limit_unit") or "GB")
+    lb = 0 if lv<=0 else p2b(lv,body.get("limit_unit") or "GB")
     if s["role"]=="reseller": await chk_cap(s["user_id"],lb)
     uid = generate_uuid()
     exp = int(body.get("expires_days") or 0)
     async with LINKS_LOCK:
-        LINKS[uid] = {"label":(body.get("label") or "جدید").strip()[:60],"limit_bytes":lb,"used_bytes":0,"created_at":datetime.now().isoformat(),"active":True,"expires_at":(datetime.now()+timedelta(days=exp)).isoformat() if exp>0 else None,"note":"","is_default":False,"sub_id":body.get("sub_id"),"protocol":body.get("protocol") or DEFAULT_PROTOCOL,"ips":[ip.strip() for ip in body.get("ips",[]) if ip.strip()],"port":int(body.get("port")) if body.get("port") else None,"is_personal":True,"creator_id":s["user_id"]}
+        LINKS[uid] = {"label":(body.get("label") or "New").strip()[:60],"limit_bytes":lb,"used_bytes":0,"created_at":datetime.now().isoformat(),"active":True,"expires_at":(datetime.now()+timedelta(days=exp)).isoformat() if exp>0 else None,"note":"","is_default":False,"sub_id":body.get("sub_id"),"protocol":body.get("protocol") or DEFAULT_PROTOCOL,"ips":[ip.strip() for ip in body.get("ips",[]) if ip.strip()],"port":int(body.get("port")) if body.get("port") else None,"is_personal":True,"creator_id":s["user_id"]}
     asyncio.create_task(save_state())
     h = get_host()
     return {"uuid":uid,**LINKS[uid],"vless_link":"\n".join(gen_vless(LINKS[uid],uid,h)),"sub_url":f"https://{h}/sub/{uid}"}
@@ -472,7 +479,6 @@ async def delete_link(uid: str, request: Request):
         del LINKS[uid]
     asyncio.create_task(save_state())
     return {"ok":True}
-
 @app.post("/api/resellers/{rid}/reset-token")
 async def reset_reseller_token(rid: str, _=Depends(require_auth)):
     async with RESELLERS_LOCK:
@@ -499,8 +505,8 @@ async def create_reseller(request: Request, _=Depends(require_auth)):
     body = await request.json()
     name,pw = str(body.get("name","")).strip(), str(body.get("password","")).strip()
     gb = float(body.get("limit_gb") or 0)
-    if not name or not pw: raise HTTPException(400,"نام و رمز الزامی")
-    if gb<=0: raise HTTPException(400,"حجم باید بیشتر از ۰")
+    if not name or not pw: raise HTTPException(400,"Name+pass required")
+    if gb<=0: raise HTTPException(400,"GB must be > 0")
     rid = secrets.token_hex(8)
     async with RESELLERS_LOCK:
         RESELLERS[rid] = {"name":name,"password_hash":hash_password(pw),"total_bytes":p2b(gb,"GB"),"active":True,"login_token":secrets.token_urlsafe(16),"created_at":datetime.now().isoformat()}
@@ -549,20 +555,34 @@ async def reseller_panel(request: Request):
         if x<1024**3: return f"{x/1024**2:.1f}MB"
         return f"{x/1024**3:.2f}GB"
     rg = f"{rem/(1024**3):.3f}"
-    html = "<!DOCTYPE html><html lang='fa' dir='rtl'><head><meta charset='UTF-8'><title>پنل</title>"
-    html += "<style>body{font-family:Tahoma;background:#060f1d;color:#E8F4FF;padding:16px}.w{max-width:450px;margin:auto}.h{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.rbox{background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:2px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px;text-align:center;margin-bottom:14px}.rbox .rl{font-size:10px;color:#7BAED4}.rbox .rv{font-size:36px;font-weight:900;color:#E8F4FF;margin:6px 0}.rbox .ru{font-size:12px;color:#3D6B8E}.c{background:rgba(10,22,40,0.9);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:18px;margin-bottom:12px}.g{display:flex;gap:10px;flex-wrap:wrap}.gb{flex:1;min-width:100px;padding:12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:11px;text-align:center}.l{font-size:9px;color:#3D6B8E}.v{font-size:18px;font-weight:800}.br{height:5px;background:rgba(139,92,246,0.1);border-radius:3px;margin:10px 0}.bf{height:100%;border-radius:3px}.btn{font-size:11px;padding:7px 14px;border-radius:8px;border:1px solid rgba(139,92,246,0.2);background:transparent;color:#7BAED4;cursor:pointer;font-family:inherit}.ft{text-align:center;padding-top:12px;font-size:9px;color:#3D6B8E}</style></head><body>"
-    html += f"<div class='w'><div class='h'><div><b style='font-size:15px'>{nm}</b><br><span style='font-size:10px;color:#3D6B8E'>نماینده</span></div>"
-    html += "<form action='/api/logout' method='post'><button class='btn'>خروج</button></form></div>"
-    html += f"<div class='rbox'><div class='rl'>حجم باقی‌مانده</div><div class='rv'>{rg}</div><div class='ru'>گیگابایت</div></div>"
-    html += f"<div class='c'><div style='display:flex;justify-content:space-between;font-size:12px;font-weight:700'><span>مصرف: {b(usd)}</span><span>از {b(tot)}</span></div>"
-    html += f"<div class='br'><div class='bf' style='width:{p}%;background:{bar}'></div></div>"
-    html += f"<div style='display:flex;justify-content:space-between;font-size:9px;color:#3D6B8E'><span>باقی: {b(rem)}</span><span>{p}%</span></div></div>"
-    html += f"<div class='g'><div class='gb'><div class='l'>حجم کل</div><div class='v'>{b(tot)}</div></div>"
-    html += f"<div class='gb'><div class='l'>باقیمانده</div><div class='v' style='color:{bar}'>{b(rem)}</div></div>"
-    html += f"<div class='gb'><div class='l'>کانفیگها</div><div class='v'>{cnt}</div></div></div>"
-    html += f"<div class='c'><div style='font-size:12px;color:#7BAED4;line-height:2'><b>محدودیتها:</b><br>- حجم کل: {b(tot)}<br>- باقیمانده: {rg} GB<br>- کانفیگ نامحدود: ممنوع</div></div>"
-    html += "<div class='ft'>VaslZone Gateway</div></div></body></html>"
-    return HTMLResponse(content=html)
+    out = "<!DOCTYPE html><html lang='fa' dir='rtl'><head><meta charset='UTF-8'><title>Panel</title>"
+    out += "<style>body{font-family:Tahoma;background:#060f1d;color:#E8F4FF;padding:16px;margin:0}"
+    out += ".w{max-width:450px;margin:auto}.h{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}"
+    out += ".rx{background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:2px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px;text-align:center;margin-bottom:14px}"
+    out += ".rx .t{font-size:10px;color:#7BAED4}.rx .n{font-size:36px;font-weight:900;color:#E8F4FF;margin:6px 0}.rx .u{font-size:12px;color:#3D6B8E}"
+    out += ".c{background:rgba(10,22,40,0.9);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:18px;margin-bottom:12px}"
+    out += ".g{display:flex;gap:10px;flex-wrap:wrap}.gb{flex:1;min-width:100px;padding:12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:11px;text-align:center}"
+    out += ".bl{font-size:9px;color:#3D6B8E}.bv{font-size:18px;font-weight:800}"
+    out += ".br{height:5px;background:rgba(139,92,246,0.1);border-radius:3px;margin:10px 0}.bf{height:100%;border-radius:3px}"
+    out += ".bn{font-size:11px;padding:7px 14px;border-radius:8px;border:1px solid rgba(139,92,246,0.2);background:transparent;color:#7BAED4;cursor:pointer;font-family:inherit}"
+    out += ".ft{text-align:center;padding-top:12px;font-size:9px;color:#3D6B8E}</style></head><body>"
+    out += "<div class='w'>"
+    out += "<div class='h'><div><b style='font-size:15px'>"+nm+"</b><br><span style='font-size:10px;color:#3D6B8E'>نماینده</span></div>"
+    out += "<form action='/api/logout' method='post'><button class='bn'>خروج</button></form></div>"
+    out += "<div class='rx'><div class='t'>حجم باقی‌مانده</div><div class='n'>"+rg+"</div><div class='u'>گیگابایت</div></div>"
+    out += "<div class='c'><div style='display:flex;justify-content:space-between;font-size:12px;font-weight:700'>"
+    out += "<span>مصرف: "+b(usd)+"</span><span>از "+b(tot)+"</span></div>"
+    out += "<div class='br'><div class='bf' style='width:"+str(p)+"%;background:"+bar+"'></div></div>"
+    out += "<div style='display:flex;justify-content:space-between;font-size:9px;color:#3D6B8E'>"
+    out += "<span>باقی: "+b(rem)+"</span><span>"+str(p)+"%</span></div></div>"
+    out += "<div class='g'>"
+    out += "<div class='gb'><div class='bl'>حجم کل</div><div class='bv'>"+b(tot)+"</div></div>"
+    out += "<div class='gb'><div class='bl'>باقیمانده</div><div class='bv' style='color:"+bar+"'>"+b(rem)+"</div></div>"
+    out += "<div class='gb'><div class='bl'>کانفیگها</div><div class='bv'>"+str(cnt)+"</div></div></div>"
+    out += "<div class='c'><div style='font-size:12px;color:#7BAED4;line-height:2'><b>محدودیتها:</b><br>"
+    out += "- حجم کل: "+b(tot)+"<br>- باقیمانده: "+rg+" GB<br>- کانفیگ نامحدود: ممنوع</div></div>"
+    out += "<div class='ft'>VaslZone Gateway</div></div></body></html>"
+    return HTMLResponse(content=out)
 
 @app.get("/r/{login_token}")
 async def reseller_token_login(login_token: str):
@@ -593,7 +613,7 @@ async def dashboard(request: Request):
     await deflink()
     return HTMLResponse(content=DASHBOARD_HTML)
 
-from relay_vless import websocket_tunnel
+from relay_vless import RELAY_BUF, parse_vless_header, check_and_use, relay_ws_to_tcp, relay_tcp_to_ws, websocket_tunnel
 app.add_api_websocket_route("/ws/{uuid}", websocket_tunnel)
 
 from xhttp_siz10 import router as xhttp_router
