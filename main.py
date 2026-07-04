@@ -45,7 +45,12 @@ DB_POOL = None
 async def get_db():
     global DB_POOL
     if DB_POOL is None:
-        DB_POOL = await asyncpg.create_pool(CONFIG["database_url"], min_size=1, max_size=5)
+        DB_POOL = await asyncpg.create_pool(
+            CONFIG["database_url"], 
+            min_size=1, 
+            max_size=5,
+            ssl="require"
+        )
     return DB_POOL
 
 # ── State ─────────────────────────────────────────────────────────────────────
