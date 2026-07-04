@@ -910,8 +910,16 @@ async def public_sub_data(uuid_key: str, request: Request):
                 "vless_link": "\n".join(generate_vless_links(link, lid, host)),
                 "sub_url": f"https://{host}/sub/{lid}", "connections": active_conns})
         total_used = sum(l["used_bytes"] for l in links_out)
-        return {"locked": False, "name": sub["name"], "desc": sub.get("desc", ""),
-        
+        return {
+    "locked": False,
+    "name": sub["name"],
+    "desc": sub.get("desc", ""),
+    "sub_url": f"https://{host}/sub-group/{uuid_key}",
+    "active_connections": sum(l["connections"] for l in links_out),
+    "total_used_fmt": fmt_bytes(total_used),
+    "links": links_out
+}
+
 @app.get("/api/public/sub-single/{uuid}")
 async def public_single_sub_data(uuid: str):
     async with LINKS_LOCK:
