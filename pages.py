@@ -1507,7 +1507,6 @@ function renderSubsGrid(subs){
       </div>
       <div class="sub-card-bottom">
         <button class="btn btn-sm btn-g" onclick="openSubLinks('${esc(s.sub_id)}','${esc(s.name)}')"><i class="ti ti-link-plus"></i> کانفیگ‌ها</button>
-<button class="btn btn-sm btn-g" onclick="navigator.clipboard.writeText('${r.login_link}').then(()=>toast('لینک اختصاصی نماینده کپی شد','ok'))" title="لینک اختصاصی"><i class="ti ti-copy"></i></button>
         <button class="btn btn-sm btn-pur" onclick="copyAllSubLinks('${esc(s.sub_id)}')"><i class="ti ti-copy"></i> کپی همه ساب‌ها</button>
         <button class="btn btn-sm btn-g btn-icon" onclick="showQR('${esc(s.sub_url)}')" title="QR"><i class="ti ti-qrcode"></i></button>
         <button class="btn btn-sm btn-d btn-icon" onclick="deleteSub('${esc(s.sub_id)}')" title="حذف"><i class="ti ti-trash"></i></button>
