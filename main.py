@@ -1013,7 +1013,7 @@ async def public_single_sub_data(uuid: str):
                 "sub_url": None
             }]
         }
-────────────────────────────────────────────────────────────────
+
 from pages import LOGIN_HTML, DASHBOARD_HTML
 
 @app.get("/login", response_class=HTMLResponse)
