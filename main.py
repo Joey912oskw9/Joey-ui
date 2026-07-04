@@ -4,7 +4,7 @@ import os
 import hashlib
 import secrets
 import time
-import asyncpg
+import aiofiles
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
@@ -23,6 +23,12 @@ IRAN_TZ = ZoneInfo("Asia/Tehran")
 
 app = FastAPI(title="VaslZone Gateway", docs_url=None, redoc_url=None)
 
+CONFIG = {
+    "port": int(os.environ.get("PORT", 8000)),
+    "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
+    "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", "localhost"),
+}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,61 +38,47 @@ app.add_middleware(
 )
 
 # ── Persistence ───────────────────────────────────────────────────────────────
-CONFIG = {
-    "port": int(os.environ.get("PORT", 8000)),
-    "secret": os.environ.get("SECRET_KEY", secrets.token_urlsafe(32)),
-    "host": os.environ.get("RAILWAY_PUBLIC_DOMAIN", "localhost"),
-    "database_url": os.environ.get("DATABASE_URL", ""),
-}
+DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
+DATA_FILE = DATA_DIR / "rvg_state.json"
+SAVE_LOCK = asyncio.Lock()
 
-# ── Database ──────────────────────────────────────────────────────────────────
-DB_POOL = None
-
-async def get_db():
-    global DB_POOL
-    if DB_POOL is None:
-        DB_POOL = await asyncpg.create_pool(CONFIG["database_url"], min_size=1, max_size=5)
-    return DB_POOL
-
-# ── State ─────────────────────────────────────────────────────────────────────
 async def load_state():
     global LINKS, AUTH, SUBS, GLOBAL_SETTINGS, RESELLERS
     try:
-        pool = await get_db()
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT value FROM state WHERE key='rvg_state'")
-            if row:
-                data = json.loads(row["value"])
-                LINKS.update(data.get("links", {}))
-                SUBS.update(data.get("subs", {}))
-                RESELLERS.update(data.get("resellers", {}))
-                if "global_settings" in data:
-                    GLOBAL_SETTINGS.update(data["global_settings"])
-                if "password_hash" in data:
-                    AUTH["password_hash"] = data["password_hash"]
-                logger.info(f"Loaded from DB: {len(LINKS)} links, {len(SUBS)} subs, {len(RESELLERS)} resellers")
-            else:
-                logger.info("No existing state in DB, starting fresh")
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        if DATA_FILE.exists():
+            async with aiofiles.open(DATA_FILE, "r", encoding="utf-8") as f:
+                raw = await f.read()
+                data = json.loads(raw)
+            LINKS.update(data.get("links", {}))
+            SUBS.update(data.get("subs", {}))
+            RESELLERS.update(data.get("resellers", {}))
+            if "global_settings" in data:
+                GLOBAL_SETTINGS.update(data["global_settings"])
+            if "password_hash" in data:
+                AUTH["password_hash"] = data["password_hash"]
+            logger.info(f"State loaded: {len(LINKS)} links, {len(SUBS)} subs, {len(RESELLERS)} resellers")
     except Exception as e:
-        logger.warning(f"Could not load state from DB: {e}")
+        logger.warning(f"Could not load state: {e}")
+
 async def save_state():
-    try:
-        pool = await get_db()
-        data = {
-            "links": dict(LINKS),
-            "subs": dict(SUBS),
-            "resellers": dict(RESELLERS),
-            "global_settings": dict(GLOBAL_SETTINGS),
-            "password_hash": AUTH["password_hash"],
-            "saved_at": datetime.now().isoformat(),
-        }
-        async with pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO state (key, value) VALUES ($1, $2)
-                ON CONFLICT (key) DO UPDATE SET value = $2
-            """, "rvg_state", json.dumps(data, ensure_ascii=False))
-    except Exception as e:
-        logger.warning(f"Could not save state to DB: {e}")
+    async with SAVE_LOCK:
+        try:
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            data = {
+                "links": dict(LINKS),
+                "subs": dict(SUBS),
+                "resellers": dict(RESELLERS),
+                "global_settings": dict(GLOBAL_SETTINGS),
+                "password_hash": AUTH["password_hash"],
+                "saved_at": datetime.now().isoformat(),
+            }
+            tmp = DATA_FILE.with_suffix(".tmp")
+            async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(data, ensure_ascii=False, indent=2))
+            tmp.replace(DATA_FILE)
+        except Exception as e:
+            logger.warning(f"Could not save state: {e}")
 
 # ── In-memory state ───────────────────────────────────────────────────────────
 connections: dict = {}
@@ -175,26 +167,13 @@ async def startup():
     limits = httpx.Limits(max_connections=500, max_keepalive_connections=100)
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
-    
-    # First create table, then load state
-    try:
-        pool = await get_db()
-        async with pool.acquire() as conn:
-            await conn.execute("CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value JSONB)")
-    except Exception as e:
-        logger.warning(f"Could not create table: {e}")
-    
     await load_state()
-    
     log_activity("system", "سرور راه‌اندازی شد", "ok")
     logger.info(f"VaslZone Gateway started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
     await save_state()
-    global DB_POOL
-    if DB_POOL:
-        await DB_POOL.close()
     if http_client:
         await http_client.aclose()
 
@@ -325,9 +304,6 @@ async def check_reseller_capacity(reseller_id: str, new_limit_bytes: int):
             for d in LINKS.values():
                 if d.get("creator_id") == reseller_id:
                     allocated += d.get("limit_bytes", 0)
-        remaining = res.get("total_bytes", 0) - allocated
-        if new_limit_bytes > remaining:
-            raise HTTPException(status_code=400, detail=f"حجم درخواستی {fmt_bytes(new_limit_bytes)} بیشتر از حجم باقی‌مانده {fmt_bytes(remaining)} است.")
         if allocated + new_limit_bytes > res.get("total_bytes", 0):
             raise HTTPException(status_code=400, detail="حجم مجاز شما برای ساخت کانفیگ به پایان رسیده است.")
 
@@ -694,9 +670,8 @@ async def create_links_bulk(request: Request):
                 uuid_key = SUBS[sub_id].get("uuid_key", "")
                 if uuid_key: sub_url = f"https://{host}/sub-group/{uuid_key}"
     
-    sub_bulk = "\n".join([f"https://{host}/sub/{uid}" for uid in created_uids])
     return {"ok": True, "count": count, "created_uids": created_uids,
-            "sub_url": sub_url, "sub_bulk": sub_bulk, "vless_bulk": "\n".join(all_vless)}
+            "sub_url": sub_url, "vless_bulk": "\n".join(all_vless)}
 
 @app.get("/api/links")
 async def list_links(request: Request):
@@ -843,63 +818,6 @@ async def reseller_links(rid: str, _=Depends(require_auth)):
         result = [{"uuid": uid, **d} for uid, d in LINKS.items() if d.get("creator_id") == rid]
     return {"links": result}
 
-# ── Reseller Panel ────────────────────────────────────────────────────────────
-def _make_reseller_html(name, total_s, used_s, rem_s, cnt, pct):
-    bar = "#EF4444" if pct > 90 else "#F59E0B" if pct > 70 else "#10B981"
-    return f"""<!DOCTYPE html>
-<html lang="fa" dir="rtl"><head><meta charset="UTF-8"><title>پنل نماینده</title>
-<style>
-*{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:Tahoma,sans-serif;background:#060f1d;color:#E8F4FF;padding:16px}}
-.w{{max-width:450px;margin:auto}}
-.h{{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}}
-.c{{background:rgba(10,22,40,0.9);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:18px;margin-bottom:12px}}
-.g{{display:flex;gap:10px;flex-wrap:wrap}}
-.gb{{flex:1;min-width:100px;padding:12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:11px;text-align:center}}
-.l{{font-size:9px;color:#3D6B8E}}
-.v{{font-size:18px;font-weight:800}}
-.br{{height:5px;background:rgba(139,92,246,0.1);border-radius:3px;margin:10px 0}}
-.bf{{height:100%;border-radius:3px;background:{bar};width:{pct}%}}
-.btn{{font-size:11px;padding:7px 14px;border-radius:8px;border:1px solid rgba(139,92,246,0.2);background:transparent;color:#7BAED4;cursor:pointer;font-family:inherit}}
-.ft{{text-align:center;padding-top:12px;font-size:9px;color:#3D6B8E}}
-</style></head><body><div class="w">
-<div class="h"><div><b style="font-size:15px">{name}</b><br><span style="font-size:10px;color:#3D6B8E">نماینده</span></div>
-<form action="/api/logout" method="post" style="display:inline"><button class="btn" type="submit">خروج</button></form></div>
-<div class="c"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>مصرف: {used_s}</span><span>از {total_s}</span></div>
-<div class="br"><div class="bf"></div></div>
-<div style="display:flex;justify-content:space-between;font-size:9px;color:#3D6B8E"><span>باقی: {rem_s}</span><span>{pct}%</span></div></div>
-<div class="g">
-<div class="gb"><div class="l">حجم کل</div><div class="v">{total_s}</div></div>
-<div class="gb"><div class="l">باقیمانده</div><div class="v" style="color:{bar}">{rem_s}</div></div>
-<div class="gb"><div class="l">کانفیگها</div><div class="v">{cnt}</div></div></div>
-<div class="c"><div style="font-size:12px;color:#7BAED4;line-height:2"><b>محدودیتها:</b><br>
-- حجم مجاز: {total_s}<br>- باقیمانده: {rem_s}<br>- کانفیگ نامحدود: ممنوع</div></div>
-<div class="ft">VaslZone Gateway</div></div></body></html>"""
-
-@app.get("/reseller-panel", response_class=HTMLResponse)
-async def reseller_panel(request: Request):
-    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if not s or s["role"] != "reseller": return RedirectResponse(url="/login")
-    rid = s["user_id"]
-    async with RESELLERS_LOCK:
-        res = RESELLERS.get(rid)
-        if not res or not res.get("active", True):
-            await destroy_session(request.cookies.get(SESSION_COOKIE))
-            return RedirectResponse(url="/login")
-        nm, tot = res["name"], res["total_bytes"]
-    async with LINKS_LOCK:
-        usd = sum(d.get("used_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
-        alc = sum(d.get("limit_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
-        rem = max(0, tot-alc)
-        cnt = sum(1 for d in LINKS.values() if d.get("creator_id")==rid)
-    p = int(min(100, usd/tot*100)) if tot > 0 else 0
-    def _b(x):
-        if x<1024: return f"{x}B"
-        if x<1024**2: return f"{x/1024:.0f}KB"
-        if x<1024**3: return f"{x/1024**2:.1f}MB"
-        return f"{x/1024**3:.2f}GB"
-    return HTMLResponse(content=_make_reseller_html(nm, _b(tot), _b(usd), _b(rem), cnt, p))
-
 # ── Reseller Token Login ──────────────────────────────────────────────────────
 @app.get("/r/{login_token}")
 async def reseller_token_login(login_token: str):
@@ -908,29 +826,10 @@ async def reseller_token_login(login_token: str):
             if res.get("login_token") == login_token and res.get("active", True):
                 token = await create_session("reseller", rid)
                 log_activity("auth", f"ورود {res['name']} با لینک اختصاصی", "ok")
-                resp = RedirectResponse(url="/reseller-panel")
+                resp = RedirectResponse(url="/dashboard")
                 resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
                 return resp
     return HTMLResponse("<h2 style='padding:40px;font-family:sans-serif'>لینک نامعتبر است</h2>", status_code=404)
-
-# ── HTML Pages ────────────────────────────────────────────────────────────────
-from pages import LOGIN_HTML, DASHBOARD_HTML
-
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if s:
-        if s["role"] == "admin": return RedirectResponse(url="/dashboard")
-        if s["role"] == "reseller": return RedirectResponse(url="/reseller-panel")
-    return HTMLResponse(content=LOGIN_HTML)
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if not s: return RedirectResponse(url="/login")
-    if s["role"] == "reseller": return RedirectResponse(url="/reseller-panel")
-    await ensure_default_link()
-    return HTMLResponse(content=DASHBOARD_HTML)
 
 # ── VLESS Relay ───────────────────────────────────────────────────────────────
 from relay_vless import RELAY_BUF, parse_vless_header, check_and_use, relay_ws_to_tcp, relay_tcp_to_ws, websocket_tunnel
@@ -962,7 +861,7 @@ async def http_proxy(target_url: str, request: Request):
 # ── Public Sub Page ───────────────────────────────────────────────────────────
 @app.get("/p/{uuid_key}", response_class=HTMLResponse)
 async def public_sub_page(uuid_key: str, request: Request):
-    from pages import get_public_page_html
+    from public_page import get_public_page_html
     async with SUBS_LOCK:
         sub = next(({"sub_id": sid, **s} for sid, s in SUBS.items() if s.get("uuid_key") == uuid_key), None)
         if not sub: return HTMLResponse("<h2 style='font-family:sans-serif;padding:40px'>گروه پیدا نشد</h2>", status_code=404)
@@ -999,6 +898,22 @@ async def public_sub_data(uuid_key: str, request: Request):
             "sub_url": f"https://{host}/sub-group/{uuid_key}",
             "active_connections": sum(l["connections"] for l in links_out),
             "total_used_fmt": fmt_bytes(total_used), "links": links_out}
+
+# ── HTML Pages ────────────────────────────────────────────────────────────────
+from pages import LOGIN_HTML, DASHBOARD_HTML
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
+    if s and s["role"] == "admin": return RedirectResponse(url="/dashboard")
+    return HTMLResponse(content=LOGIN_HTML)
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
+    if not s or s["role"] != "admin": return RedirectResponse(url="/login")
+    await ensure_default_link()
+    return HTMLResponse(content=DASHBOARD_HTML)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=CONFIG["port"], log_level="info", workers=1)
