@@ -46,7 +46,7 @@ supabase: Client = None
 async def init_supabase():
     global supabase
     url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_KEY")
+    key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_KEY")
     if url and key:
         supabase = create_client(url, key)
         logger.info("Supabase connected")
