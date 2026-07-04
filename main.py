@@ -304,6 +304,9 @@ async def check_reseller_capacity(reseller_id: str, new_limit_bytes: int):
             for d in LINKS.values():
                 if d.get("creator_id") == reseller_id:
                     allocated += d.get("limit_bytes", 0)
+        remaining = res.get("total_bytes", 0) - allocated
+        if new_limit_bytes > remaining:
+            raise HTTPException(status_code=400, detail=f"حجم درخواستی {fmt_bytes(new_limit_bytes)} بیشتر از حجم باقی‌مانده {fmt_bytes(remaining)} است.")
         if allocated + new_limit_bytes > res.get("total_bytes", 0):
             raise HTTPException(status_code=400, detail="حجم مجاز شما برای ساخت کانفیگ به پایان رسیده است.")
 
@@ -818,6 +821,63 @@ async def reseller_links(rid: str, _=Depends(require_auth)):
         result = [{"uuid": uid, **d} for uid, d in LINKS.items() if d.get("creator_id") == rid]
     return {"links": result}
 
+# ── Reseller Panel ────────────────────────────────────────────────────────────
+def _make_reseller_html(name, total_s, used_s, rem_s, cnt, pct):
+    bar = "#EF4444" if pct > 90 else "#F59E0B" if pct > 70 else "#10B981"
+    return f"""<!DOCTYPE html>
+<html lang="fa" dir="rtl"><head><meta charset="UTF-8"><title>پنل نماینده</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:Tahoma,sans-serif;background:#060f1d;color:#E8F4FF;padding:16px}}
+.w{{max-width:450px;margin:auto}}
+.h{{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}}
+.c{{background:rgba(10,22,40,0.9);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:18px;margin-bottom:12px}}
+.g{{display:flex;gap:10px;flex-wrap:wrap}}
+.gb{{flex:1;min-width:100px;padding:12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);border-radius:11px;text-align:center}}
+.l{{font-size:9px;color:#3D6B8E}}
+.v{{font-size:18px;font-weight:800}}
+.br{{height:5px;background:rgba(139,92,246,0.1);border-radius:3px;margin:10px 0}}
+.bf{{height:100%;border-radius:3px;background:{bar};width:{pct}%}}
+.btn{{font-size:11px;padding:7px 14px;border-radius:8px;border:1px solid rgba(139,92,246,0.2);background:transparent;color:#7BAED4;cursor:pointer;font-family:inherit}}
+.ft{{text-align:center;padding-top:12px;font-size:9px;color:#3D6B8E}}
+</style></head><body><div class="w">
+<div class="h"><div><b style="font-size:15px">{name}</b><br><span style="font-size:10px;color:#3D6B8E">نماینده</span></div>
+<form action="/api/logout" method="post" style="display:inline"><button class="btn" type="submit">خروج</button></form></div>
+<div class="c"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>مصرف: {used_s}</span><span>از {total_s}</span></div>
+<div class="br"><div class="bf"></div></div>
+<div style="display:flex;justify-content:space-between;font-size:9px;color:#3D6B8E"><span>باقی: {rem_s}</span><span>{pct}%</span></div></div>
+<div class="g">
+<div class="gb"><div class="l">حجم کل</div><div class="v">{total_s}</div></div>
+<div class="gb"><div class="l">باقیمانده</div><div class="v" style="color:{bar}">{rem_s}</div></div>
+<div class="gb"><div class="l">کانفیگها</div><div class="v">{cnt}</div></div></div>
+<div class="c"><div style="font-size:12px;color:#7BAED4;line-height:2"><b>محدودیتها:</b><br>
+- حجم مجاز: {total_s}<br>- باقیمانده: {rem_s}<br>- کانفیگ نامحدود: ممنوع</div></div>
+<div class="ft">VaslZone Gateway</div></div></body></html>"""
+
+@app.get("/reseller-panel", response_class=HTMLResponse)
+async def reseller_panel(request: Request):
+    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
+    if not s or s["role"] != "reseller": return RedirectResponse(url="/login")
+    rid = s["user_id"]
+    async with RESELLERS_LOCK:
+        res = RESELLERS.get(rid)
+        if not res or not res.get("active", True):
+            await destroy_session(request.cookies.get(SESSION_COOKIE))
+            return RedirectResponse(url="/login")
+        nm, tot = res["name"], res["total_bytes"]
+    async with LINKS_LOCK:
+        usd = sum(d.get("used_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
+        alc = sum(d.get("limit_bytes",0) for d in LINKS.values() if d.get("creator_id")==rid)
+        rem = max(0, tot-alc)
+        cnt = sum(1 for d in LINKS.values() if d.get("creator_id")==rid)
+    p = int(min(100, usd/tot*100)) if tot > 0 else 0
+    def _b(x):
+        if x<1024: return f"{x}B"
+        if x<1024**2: return f"{x/1024:.0f}KB"
+        if x<1024**3: return f"{x/1024**2:.1f}MB"
+        return f"{x/1024**3:.2f}GB"
+    return HTMLResponse(content=_make_reseller_html(nm, _b(tot), _b(usd), _b(rem), cnt, p))
+
 # ── Reseller Token Login ──────────────────────────────────────────────────────
 @app.get("/r/{login_token}")
 async def reseller_token_login(login_token: str):
@@ -826,10 +886,29 @@ async def reseller_token_login(login_token: str):
             if res.get("login_token") == login_token and res.get("active", True):
                 token = await create_session("reseller", rid)
                 log_activity("auth", f"ورود {res['name']} با لینک اختصاصی", "ok")
-                resp = RedirectResponse(url="/dashboard")
+                resp = RedirectResponse(url="/reseller-panel")
                 resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
                 return resp
     return HTMLResponse("<h2 style='padding:40px;font-family:sans-serif'>لینک نامعتبر است</h2>", status_code=404)
+
+# ── HTML Pages ────────────────────────────────────────────────────────────────
+from pages import LOGIN_HTML, DASHBOARD_HTML
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
+    if s:
+        if s["role"] == "admin": return RedirectResponse(url="/dashboard")
+        if s["role"] == "reseller": return RedirectResponse(url="/reseller-panel")
+    return HTMLResponse(content=LOGIN_HTML)
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
+    if not s: return RedirectResponse(url="/login")
+    if s["role"] == "reseller": return RedirectResponse(url="/reseller-panel")
+    await ensure_default_link()
+    return HTMLResponse(content=DASHBOARD_HTML)
 
 # ── VLESS Relay ───────────────────────────────────────────────────────────────
 from relay_vless import RELAY_BUF, parse_vless_header, check_and_use, relay_ws_to_tcp, relay_tcp_to_ws, websocket_tunnel
@@ -898,22 +977,6 @@ async def public_sub_data(uuid_key: str, request: Request):
             "sub_url": f"https://{host}/sub-group/{uuid_key}",
             "active_connections": sum(l["connections"] for l in links_out),
             "total_used_fmt": fmt_bytes(total_used), "links": links_out}
-
-# ── HTML Pages ────────────────────────────────────────────────────────────────
-from pages import LOGIN_HTML, DASHBOARD_HTML
-
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if s and s["role"] == "admin": return RedirectResponse(url="/dashboard")
-    return HTMLResponse(content=LOGIN_HTML)
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    s = await get_session_data(request.cookies.get(SESSION_COOKIE))
-    if not s or s["role"] != "admin": return RedirectResponse(url="/login")
-    await ensure_default_link()
-    return HTMLResponse(content=DASHBOARD_HTML)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=CONFIG["port"], log_level="info", workers=1)
