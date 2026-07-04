@@ -317,7 +317,7 @@ async def health():
     return {"status": "ok", "connections": len(connections), "uptime": uptime()}
 
 # ── Subscriptions ─────────────────────────────────────────────────────────────
-@app.get("/sub/{uuid}", response_class=HTMLResponse)
+@app.get("/sub/{uuid}")
 async def subscription_single(uuid: str, request: Request):
     import base64
     async with LINKS_LOCK:
@@ -325,13 +325,10 @@ async def subscription_single(uuid: str, request: Request):
         if not link or not is_link_allowed(link):
             raise HTTPException(status_code=404, detail="not found or inactive")
     
-    # تشخیص مرورگر
     ua = request.headers.get("user-agent", "").lower()
     if any(b in ua for b in ["mozilla", "chrome", "safari", "firefox", "edge", "opera"]):
-        from public_page import get_single_sub_page_html
         return HTMLResponse(content=get_single_sub_page_html(uuid))
     
-    # کلاینت v2ray: base64
     host = get_host()
     lines = generate_vless_links(link, uuid, host)
     content = base64.b64encode("\n".join(lines).encode()).decode()
@@ -366,6 +363,7 @@ async def sub_group_subscription(uuid_key: str, request: Request):  # ← reques
     ua = request.headers.get("user-agent", "").lower()
     if any(b in ua for b in ["mozilla", "chrome", "safari", "firefox", "edge", "opera"]):
         from public_page import get_public_page_html
+        from public_page import get_single_sub_page_html
         return HTMLResponse(content=get_public_page_html(uuid_key))
     
     # ادامه کد قبلی برای کلاینت v2ray
@@ -913,6 +911,33 @@ async def public_sub_data(uuid_key: str, request: Request):
                 "sub_url": f"https://{host}/sub/{lid}", "connections": active_conns})
         total_used = sum(l["used_bytes"] for l in links_out)
         return {"locked": False, "name": sub["name"], "desc": sub.get("desc", ""),
+        
+@app.get("/api/public/sub-single/{uuid}")
+async def public_single_sub_data(uuid: str):
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+        if not link:
+            raise HTTPException(status_code=404, detail="not found")
+        host = get_host()
+        active_conns = sum(1 for c in connections.values() if c.get("uuid") == uuid)
+        vless_list = generate_vless_links(link, uuid, host)
+        return {
+            "name": link["label"],
+            "desc": link.get("note", ""),
+            "total_used_fmt": fmt_bytes(link.get("used_bytes", 0)),
+            "active_connections": active_conns,
+            "links": [{
+                "uuid": uuid, "label": link["label"],
+                "active": is_link_allowed(link),
+                "protocol": link.get("protocol", DEFAULT_PROTOCOL),
+                "used_bytes": link.get("used_bytes", 0),
+                "used_fmt": fmt_bytes(link.get("used_bytes", 0)),
+                "limit_bytes": link.get("limit_bytes", 0),
+                "limit_fmt": "∞" if link.get("limit_bytes", 0) == 0 else fmt_bytes(link["limit_bytes"]),
+                "vless_link": "\n".join(vless_list),
+                "sub_url": None
+            }]
+        }
         
 @app.get("/api/public/sub-single/{uuid}")
 async def public_single_sub_data(uuid: str):
