@@ -974,11 +974,46 @@ async def public_single_sub_data(uuid: str):
                 "sub_url": None
             }]
         }
+# ── public_sub_data (همونی که داشتیم) ──
+        return {                          # ← return با {
+            "locked": False,              # ← ۸ فاصله
+            "name": sub["name"],
+            "desc": sub.get("desc", ""),
             "sub_url": f"https://{host}/sub-group/{uuid_key}",
             "active_connections": sum(l["connections"] for l in links_out),
-            "total_used_fmt": fmt_bytes(total_used), "links": links_out}
+            "total_used_fmt": fmt_bytes(total_used),
+            "links": links_out
+        }                                 # ← بسته شدن }
 
-# ── HTML Pages ────────────────────────────────────────────────────────────────
+# ── API جدید ──
+@app.get("/api/public/sub-single/{uuid}")
+async def public_single_sub_data(uuid: str):
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+        if not link:
+            raise HTTPException(status_code=404, detail="not found")
+        host = get_host()
+        active_conns = sum(1 for c in connections.values() if c.get("uuid") == uuid)
+        vless_list = generate_vless_links(link, uuid, host)
+        return {
+            "name": link["label"],
+            "desc": link.get("note", ""),
+            "total_used_fmt": fmt_bytes(link.get("used_bytes", 0)),
+            "active_connections": active_conns,
+            "links": [{
+                "uuid": uuid,
+                "label": link["label"],
+                "active": is_link_allowed(link),
+                "protocol": link.get("protocol", DEFAULT_PROTOCOL),
+                "used_bytes": link.get("used_bytes", 0),
+                "used_fmt": fmt_bytes(link.get("used_bytes", 0)),
+                "limit_bytes": link.get("limit_bytes", 0),
+                "limit_fmt": "∞" if link.get("limit_bytes", 0) == 0 else fmt_bytes(link["limit_bytes"]),
+                "vless_link": "\n".join(vless_list),
+                "sub_url": None
+            }]
+        }
+────────────────────────────────────────────────────────────────
 from pages import LOGIN_HTML, DASHBOARD_HTML
 
 @app.get("/login", response_class=HTMLResponse)
