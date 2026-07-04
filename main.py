@@ -175,20 +175,24 @@ async def startup():
     limits = httpx.Limits(max_connections=500, max_keepalive_connections=100)
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout, follow_redirects=True)
-    await load_state()
-        try:
+    
+    # First create table, then load state
+    try:
         pool = await get_db()
         async with pool.acquire() as conn:
             await conn.execute("CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value JSONB)")
     except Exception as e:
         logger.warning(f"Could not create table: {e}")
+    
+    await load_state()
+    
     log_activity("system", "سرور راه‌اندازی شد", "ok")
     logger.info(f"VaslZone Gateway started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
     await save_state()
-        global DB_POOL
+    global DB_POOL
     if DB_POOL:
         await DB_POOL.close()
     if http_client:
